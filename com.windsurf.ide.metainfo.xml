@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop">
+  <id>com.windsurf.ide</id>
+  <metadata_license>MIT</metadata_license>
+  <project_license>LicenseRef-proprietary</project_license>
+  <name>Windsurf</name>
+  <developer_name>Codeium</developer_name>
+  <url type="homepage">https://windsurf.com</url>
+  <url type="help">https://docs.windsurf.com</url>
+  <summary>AI-powered IDE that keeps you in flow.</summary>
+  <description>
+    <p>Windsurf is an AI-powered IDE that understands your codebase, assists with complex tasks, and helps you stay in flow.</p>
+    <p>IMPORTANT: To use certain features in this flatpacked version (like the integrated terminal), please read the linked documentation.</p>
+    <p>This is the proprietary Codeium build of Windsurf, packaged into a Flatpak. This repackaging is not supported by Codeium.</p>
+  </description>
+  <screenshots>
+    <screenshot type="default">
+      <image>https://windsurf.com/screenshots/windsurf-screenshot.png</image>
+      <caption>AI-powered coding with Windsurf</caption>
+    </screenshot>
+  </screenshots>
+  <launchable type="desktop-id">com.windsurf.ide.desktop</launchable>
+  <content_rating type="oars-1.1">
+    <content_attribute id="social-info">moderate</content_attribute>
+  </content_rating>
+  <releases>
+    <release version="1.11.5" date="2025-08-08">
+      <description>Latest stable release</description>
+    </release>
+  </releases>
+</component>

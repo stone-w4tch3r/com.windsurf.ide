@@ -1,10 +1,10 @@
-app-id: com.visualstudio.code
+app-id: com.windsurf.ide
 runtime: org.freedesktop.Sdk
 runtime-version: '24.08'
 sdk: org.freedesktop.Sdk
 base: org.electronjs.Electron2.BaseApp
 base-version: '24.08'
-command: code
+command: windsurf
 tags: [proprietary]
 separate-locales: false
 finish-args:
@@ -28,7 +28,7 @@ finish-args:
   - --talk-name=com.canonical.AppMenu.Registrar
   - --talk-name=com.canonical.AppMenu.Registrar.*
 add-extensions:
-  com.visualstudio.code.tool:
+  com.windsurf.ide.tool:
     directory: tools
     subdirectories: true
     version: '24.08'
@@ -67,82 +67,68 @@ modules:
           name: libsecret
           stable-only: true
 
-  - name: vscode
+  - name: windsurf
     buildsystem: simple
     build-commands:
-      - install -D code.sh /app/bin/code
-      - install -Dm644 vscode_64.png /app/share/icons/hicolor/64x64/apps/com.visualstudio.code.png
-      - install -Dm644 vscode_128.png /app/share/icons/hicolor/128x128/apps/com.visualstudio.code.png
-      - install -Dm644 vscode_256.png /app/share/icons/hicolor/256x256/apps/com.visualstudio.code.png
-      - install -Dm644 vscode_512.png /app/share/icons/hicolor/512x512/apps/com.visualstudio.code.png
-      - install -Dm644 com.visualstudio.code.metainfo.xml -t /app/share/metainfo
-      - install -Dm644 com.visualstudio.code.desktop -t /app/share/applications
-      - install -Dm644 com.visualstudio.code-url-handler.desktop -t /app/share/applications
-      - install -Dm644 com.visualstudio.code-workspace.xml -t /app/share/mime/packages
+      - install -D windsurf.sh /app/bin/windsurf
+      - install -Dm644 windsurf_64.png /app/share/icons/hicolor/64x64/apps/com.windsurf.ide.png
+      - install -Dm644 windsurf_128.png /app/share/icons/hicolor/128x128/apps/com.windsurf.ide.png
+      - install -Dm644 windsurf_256.png /app/share/icons/hicolor/256x256/apps/com.windsurf.ide.png
+      - install -Dm644 windsurf_512.png /app/share/icons/hicolor/512x512/apps/com.windsurf.ide.png
+      - install -Dm644 com.windsurf.ide.metainfo.xml -t /app/share/metainfo
+      - install -Dm644 com.windsurf.ide.desktop -t /app/share/applications
+      - install -Dm644 com.windsurf.ide-url-handler.desktop -t /app/share/applications
+      - install -Dm644 com.windsurf.ide-workspace.xml -t /app/share/mime/packages
       - install -Dm644 npmrc -t /app/etc
-      - install -Dm644 flatpak-warning.txt -t /app/share/vscode
+      - install -Dm644 flatpak-warning.txt -t /app/share/windsurf
       - install -D apply_extra -t /app/bin
       - cp /usr/bin/ar /app/bin
       - ARCH_TRIPLE=$(gcc --print-multiarch) && cp /usr/lib/${ARCH_TRIPLE}/libbfd-*.so
         /app/lib
-      - ARCH_TRIPLE=$(gcc --print-multiarch) && ln -s /usr/lib/${ARCH_TRIPLE}/libtinfo.so/app/lib/libtinfo.so.5
+      - ARCH_TRIPLE=$(gcc --print-multiarch) && ln -s /usr/lib/${ARCH_TRIPLE}/libtinfo.so /app/lib/libtinfo.so.5
       - mkdir /app/tools
     sources:
       - type: script
         dest-filename: apply_extra
         commands:
-          - ar x code.deb
-          - tar xf data.tar.xz
-          - mv usr/share/code vscode
-          - rm -r code.deb control.tar.* data.tar.xz debian-binary usr
+          - tar xzf windsurf.tar.gz
+          - mv Windsurf windsurf
+          - rm windsurf.tar.gz
       - type: file
-        path: code.sh
+        path: windsurf.sh
       - type: file
         path: flatpak-warning.txt
       - type: file
         path: npmrc
       - type: file
-        path: com.visualstudio.code.metainfo.xml
+        path: com.windsurf.ide.metainfo.xml
       - type: file
-        path: com.visualstudio.code.desktop
+        path: com.windsurf.ide.desktop
       - type: file
-        path: com.visualstudio.code-url-handler.desktop
+        path: com.windsurf.ide-url-handler.desktop
       - type: file
-        path: com.visualstudio.code-workspace.xml
+        path: com.windsurf.ide-workspace.xml
       - type: file
-        path: icons/vscode_64.png
+        path: icons/windsurf_64.png
       - type: file
-        path: icons/vscode_128.png
+        path: icons/windsurf_128.png
       - type: file
-        path: icons/vscode_256.png
+        path: icons/windsurf_256.png
       - type: file
-        path: icons/vscode_512.png
+        path: icons/windsurf_512.png
       - type: extra-data
-        filename: code.deb
+        filename: windsurf.tar.gz
         only-arches: [x86_64]
-        url: https://update.code.visualstudio.com/1.102.1/linux-deb-x64/stable
-        sha256: da0c3893d5c3a8eb85ecfc72751f969632f1afad2a8037acee5673fa2674001d
-        size: 108719178
+        url: https://windsurf-stable.codeiumdata.com/linux-x64/stable/f8b63909dde4ac913fee41e867b511a598b3b517/Windsurf-linux-x64-1.11.5.tar.gz
+        sha256: cc83879091be631757de224d0a5b0e0b3bdc74bcd939f423ec3e02926643a7da
+        size: 191822253
         x-checker-data:
           type: json
-          url: https://api.github.com/repos/microsoft/vscode/releases/latest
-          version-query: .tag_name
-          timestamp-query: .published_at
-          url-query: '"https://update.code.visualstudio.com/" + $version + "/linux-deb-x64/stable"'
+          url: https://windsurf-stable.codeium.com/api/update/linux-x64/stable/latest
+          version-query: .windsurfVersion
+          timestamp-query: null
+          url-query: .url
           is-main-source: true
-
-      - type: extra-data
-        filename: code.deb
-        only-arches: [aarch64]
-        url: https://update.code.visualstudio.com/1.102.1/linux-deb-arm64/stable
-        sha256: b89a3ad40f89eea0b354a73f93b1a5d77eacdcc04adfeebd2c8fc4365ef1b6a3
-        size: 100499574
-        x-checker-data:
-          type: json
-          url: https://api.github.com/repos/microsoft/vscode/releases/latest
-          version-query: .tag_name
-          timestamp-query: .published_at
-          url-query: '"https://update.code.visualstudio.com/" + $version + "/linux-deb-arm64/stable"'
 
   - name: kerberos
     subdir: src

@@ -1,6 +1,6 @@
-# Visual Studio Code Flatpak<!-- omit in toc -->
+# Windsurf Flatpak<!-- omit in toc -->
 
-🚨 Warning: This is an unofficial Flatpak build of Visual Studio Code, generated from the official Microsoft-built .deb packages [here](https://github.com/flathub/com.visualstudio.code/blob/master/com.visualstudio.code.yaml#L103).
+🚨 Warning: This is an unofficial Flatpak build of Windsurf, generated from the official Codeium-built .tar.gz packages from windsurf.com.
 
 ## Table of Contents<!-- omit in toc -->
 
@@ -71,12 +71,12 @@ And make sure that you have the following lines there:
 
 ### Support for language extension.
 
-Some Visual Studio extension depends on packages that might exist on your host, but they are not accessible thought Flatpak. Like support to programming languages: gcc, python, etc..
+Some Windsurf extensions depend on packages that might exist on your host, but they are not accessible through Flatpak. Like support for programming languages: gcc, python, etc..
 
 **See available SDK:**
 
 ```
-$ flatpak run --command=sh com.visualstudio.code
+$ flatpak run --command=sh com.windsurf.ide
 $ ls /usr/bin (shared runtime)
 $ ls /app/bin (bundled with this flatpak)
 ```
@@ -86,7 +86,7 @@ $ ls /app/bin (bundled with this flatpak)
 ```
 $ flatpak install flathub org.freedesktop.Sdk.Extension.dotnet
 $ flatpak install flathub org.freedesktop.Sdk.Extension.golang
-$ FLATPAK_ENABLE_SDK_EXT=dotnet,golang flatpak run com.visualstudio.code
+$ FLATPAK_ENABLE_SDK_EXT=dotnet,golang flatpak run com.windsurf.ide
 ```
 
 **Finding other SDK**
@@ -95,4 +95,4 @@ $ FLATPAK_ENABLE_SDK_EXT=dotnet,golang flatpak run com.visualstudio.code
 
 ## Support
 
-Please open issues under: https://github.com/flathub/com.visualstudio.code/issues
+Please open issues under: https://github.com/flathub/com.windsurf.ide/issues

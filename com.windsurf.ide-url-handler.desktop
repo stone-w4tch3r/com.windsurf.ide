@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=Windsurf - URL Handler
+Comment=AI-powered IDE that keeps you in flow.
+GenericName=AI Code Editor
+Exec=windsurf --open-url %U
+Icon=com.windsurf.ide
+Type=Application
+NoDisplay=true
+StartupNotify=true
+Categories=Utility;TextEditor;Development;IDE;
+MimeType=x-scheme-handler/windsurf;
+Keywords=windsurf;ai;code;editor;

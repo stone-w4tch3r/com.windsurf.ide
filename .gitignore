@@ -1,1 +1,6 @@
 *.deb
+.flatpak-builder
+repo
+single-file-repo
+com.windsurf.ide.flatpak
+.claude

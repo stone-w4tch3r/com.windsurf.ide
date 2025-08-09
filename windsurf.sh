@@ -3,14 +3,14 @@
 set -e
 shopt -s nullglob
 
-FIRST_RUN="${XDG_CONFIG_HOME}/flatpak-vscode-first-run"
+FIRST_RUN="${XDG_CONFIG_HOME}/flatpak-windsurf-first-run"
 
 function msg() {
-  echo "flatpak-vscode: $*" >&2
+  echo "flatpak-windsurf: $*" >&2
 }
 
 if [ ! -f ${FIRST_RUN} ]; then
-  WARNING_FILE="/app/share/vscode/flatpak-warning.txt"
+  WARNING_FILE="/app/share/windsurf/flatpak-warning.txt"
   touch ${FIRST_RUN}
 fi
 
@@ -65,6 +65,6 @@ if [ ! -e /etc/shells ] && [ -e /var/run/host/etc/shells ]; then
 fi
 
 exec env ELECTRON_RUN_AS_NODE=1 PATH="${PATH}:${XDG_DATA_HOME}/node_modules/bin" \
-  /app/bin/zypak-wrapper.sh /app/extra/vscode/code /app/extra/vscode/resources/app/out/cli.js \
-  --ms-enable-electron-run-as-node --extensions-dir=${XDG_DATA_HOME}/vscode/extensions \
+  /app/bin/zypak-wrapper.sh /app/extra/windsurf/windsurf /app/extra/windsurf/resources/app/out/cli.js \
+  --ms-enable-electron-run-as-node --extensions-dir=${XDG_DATA_HOME}/windsurf/extensions \
   "$@" ${WARNING_FILE}

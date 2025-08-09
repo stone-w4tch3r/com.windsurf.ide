@@ -1,0 +1,18 @@
+[Desktop Entry]
+Name=Windsurf
+Comment=AI-powered IDE that keeps you in flow.
+GenericName=AI Code Editor
+Exec=windsurf --reuse-window %F
+Icon=com.windsurf.ide
+Type=Application
+StartupNotify=true
+StartupWMClass=Windsurf
+Categories=TextEditor;Development;IDE;
+MimeType=text/plain;inode/directory;application/x-windsurf-workspace;
+Actions=new-empty-window;
+Keywords=windsurf;ai;code;editor;
+
+[Desktop Action new-empty-window]
+Name=New Empty Window
+Exec=windsurf --new-window %F
+Icon=com.windsurf.ide
