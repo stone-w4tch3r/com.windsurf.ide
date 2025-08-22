@@ -21,6 +21,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          submodules: true
       
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -44,6 +46,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          submodules: true
       
       - name: Install Flatpak
         run: |
@@ -100,6 +104,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          submodules: true
       
       - name: Scan for secrets
         uses: trufflesecurity/trufflehog@main
