@@ -5,29 +5,29 @@ sdk: org.freedesktop.Sdk
 base: org.electronjs.Electron2.BaseApp
 base-version: '24.08'
 command: windsurf
-tags: [proprietary]
+tags:
+- proprietary
 separate-locales: false
 finish-args:
-  - --require-version=0.10.3
-  - --share=network
-  - --share=ipc
-  - --socket=wayland
-  - --socket=fallback-x11
-  - --socket=pulseaudio
-  - --socket=ssh-auth
-  - --device=all
-  - --allow=devel
-  - --filesystem=host
-  - --env=NPM_CONFIG_GLOBALCONFIG=/app/etc/npmrc
-  - --env=LD_LIBRARY_PATH=/app/lib
-  # required to fix cursor scaling on wayland
-  - --env=XCURSOR_PATH=/run/host/user-share/icons:/run/host/share/icons
-  - --system-talk-name=org.freedesktop.login1
-  - --talk-name=org.freedesktop.Notifications
-  - --talk-name=org.freedesktop.secrets
-  - --talk-name=org.freedesktop.Flatpak
-  - --talk-name=com.canonical.AppMenu.Registrar
-  - --talk-name=com.canonical.AppMenu.Registrar.*
+- --require-version=0.10.3
+- --share=network
+- --share=ipc
+- --socket=wayland
+- --socket=fallback-x11
+- --socket=pulseaudio
+- --socket=ssh-auth
+- --device=all
+- --allow=devel
+- --filesystem=host
+- --env=NPM_CONFIG_GLOBALCONFIG=/app/etc/npmrc
+- --env=LD_LIBRARY_PATH=/app/lib
+- --env=XCURSOR_PATH=/run/host/user-share/icons:/run/host/share/icons
+- --system-talk-name=org.freedesktop.login1
+- --talk-name=org.freedesktop.Notifications
+- --talk-name=org.freedesktop.secrets
+- --talk-name=org.freedesktop.Flatpak
+- --talk-name=com.canonical.AppMenu.Registrar
+- --talk-name=com.canonical.AppMenu.Registrar.*
 add-extensions:
   com.windsurf.ide.tool:
     directory: tools
@@ -36,139 +36,132 @@ add-extensions:
     add-ld-path: lib
     no-autodownload: true
 cleanup:
+- /include
+- /lib/pkgconfig
+- /share/gtk-doc
+- '*.la'
+modules:
+- shared-modules/libusb/libusb.json
+- name: libsecret
+  buildsystem: meson
+  config-opts:
+  - -Dmanpage=false
+  - -Dcrypto=disabled
+  - -Dvapi=false
+  - -Dgtk_doc=false
+  - -Dintrospection=false
+  - -Dbash_completion=disabled
+  cleanup:
+  - /bin
   - /include
   - /lib/pkgconfig
-  - /share/gtk-doc
-  - '*.la'
-modules:
-  - shared-modules/libusb/libusb.json
-
-  # Provide libsecret without gcrypt, forcing it to use the D-Bus backend
-  # https://github.com/flathub/org.signal.Signal/pull/756/commits/2caf105b18f906e7707f67b3cf7384a21f461564
-  - name: libsecret
-    buildsystem: meson
-    config-opts:
-      - -Dmanpage=false
-      - -Dcrypto=disabled
-      - -Dvapi=false
-      - -Dgtk_doc=false
-      - -Dintrospection=false
-      - -Dbash_completion=disabled
-    cleanup:
-      - /bin
-      - /include
-      - /lib/pkgconfig
-      - /share/man
-    sources:
-      - type: archive
-        url: https://download.gnome.org/sources/libsecret/0.21/libsecret-0.21.7.tar.xz
-        sha256: 6b452e4750590a2b5617adc40026f28d2f4903de15f1250e1d1c40bfd68ed55e
-        x-checker-data:
-          type: gnome
-          name: libsecret
-          stable-only: true
-
-  - name: windsurf
-    buildsystem: simple
-    build-commands:
-      - install -D windsurf.sh /app/bin/windsurf
-      - install -Dm644 windsurf_64.png /app/share/icons/hicolor/64x64/apps/com.windsurf.ide.png
-      - install -Dm644 windsurf_128.png /app/share/icons/hicolor/128x128/apps/com.windsurf.ide.png
-      - install -Dm644 windsurf_256.png /app/share/icons/hicolor/256x256/apps/com.windsurf.ide.png
-      - install -Dm644 windsurf_512.png /app/share/icons/hicolor/512x512/apps/com.windsurf.ide.png
-      - install -Dm644 com.windsurf.ide.metainfo.xml -t /app/share/metainfo
-      - install -Dm644 com.windsurf.ide.desktop -t /app/share/applications
-      - install -Dm644 com.windsurf.ide-url-handler.desktop -t /app/share/applications
-      - install -Dm644 com.windsurf.ide-workspace.xml -t /app/share/mime/packages
-      - install -Dm644 npmrc -t /app/etc
-      - install -Dm644 flatpak-warning.txt -t /app/share/windsurf
-      - install -D apply_extra -t /app/bin
-      - cp /usr/bin/ar /app/bin
-      - ARCH_TRIPLE=$(gcc --print-multiarch) && cp /usr/lib/${ARCH_TRIPLE}/libbfd-*.so
-        /app/lib
-      - ARCH_TRIPLE=$(gcc --print-multiarch) && ln -s /usr/lib/${ARCH_TRIPLE}/libtinfo.so /app/lib/libtinfo.so.5
-      - mkdir /app/tools
-    sources:
-      - type: script
-        dest-filename: apply_extra
-        commands:
-          - tar xzf windsurf.tar.gz
-          - mv Windsurf windsurf
-          - rm windsurf.tar.gz
-      - type: file
-        path: windsurf.sh
-      - type: file
-        path: flatpak-warning.txt
-      - type: file
-        path: npmrc
-      - type: file
-        path: com.windsurf.ide.metainfo.xml
-      - type: file
-        path: com.windsurf.ide.desktop
-      - type: file
-        path: com.windsurf.ide-url-handler.desktop
-      - type: file
-        path: com.windsurf.ide-workspace.xml
-      - type: file
-        path: icons/windsurf_64.png
-      - type: file
-        path: icons/windsurf_128.png
-      - type: file
-        path: icons/windsurf_256.png
-      - type: file
-        path: icons/windsurf_512.png
-      - type: extra-data
-        filename: windsurf.tar.gz
-        only-arches: [x86_64]
-        url: https://windsurf-stable.codeiumdata.com/linux-x64/stable/f8b63909dde4ac913fee41e867b511a598b3b517/Windsurf-linux-x64-1.11.5.tar.gz
-        sha256: cc83879091be631757de224d0a5b0e0b3bdc74bcd939f423ec3e02926643a7da
-        size: 191822253
-        x-checker-data:
-          type: json
-          url: https://windsurf-stable.codeium.com/api/update/linux-x64/stable/latest
-          version-query: .windsurfVersion
-          timestamp-query: null
-          url-query: .url
-          is-main-source: true
-
-  - name: kerberos
-    subdir: src
-    post-install:
-      - install -Dm644 ../krb5.conf /app/etc/krb5.conf
-    sources:
-      - type: archive
-        url: https://kerberos.org/dist/krb5/1.20/krb5-1.20.tar.gz
-        sha256: 7e022bdd3c851830173f9faaa006a230a0e0fdad4c953e85bff4bf0da036e12f
-      - type: file
-        path: krb5.conf
-
-  - name: host-spawn
-    buildsystem: simple
-    build-commands:
-      - install -Dm755 host-spawn /app/bin/host-spawn
-    sources:
-      - type: file
-        url: https://github.com/1player/host-spawn/releases/download/v1.6.1/host-spawn-x86_64
-        sha256: 733746ab498e07d065cbecf80bacd447eb21846d1462e8fe23fdd9d9dc977b50
-        dest-filename: host-spawn
-        only-arches: [x86_64]
-        x-checker-data:
-          type: json
-          url: https://api.github.com/repos/1player/host-spawn/releases/latest
-          version-query: .tag_name
-          timestamp-query: .published_at
-          url-query: '"https://github.com/1player/host-spawn/releases/download/" +
-            $version + "/host-spawn-x86_64"'
-
-      - type: file
-        url: https://github.com/1player/host-spawn/releases/download/v1.6.1/host-spawn-aarch64
-        sha256: 71b7744a4d0b29279523cc0f0ed1a7af5e9555510bd9e6d4685391b59faefaac
-        dest-filename: host-spawn
-        only-arches: [aarch64]
-        x-checker-data:
-          type: json
-          url: https://api.github.com/repos/1player/host-spawn/releases/latest
-          version-query: .tag_name
-          timestamp-query: .published_at
-          url-query: '"https://github.com/1player/host-spawn/releases/download/" +
-            $version + "/host-spawn-aarch64"'
+  - /share/man
+  sources:
+  - type: archive
+    url: https://download.gnome.org/sources/libsecret/0.21/libsecret-0.21.7.tar.xz
+    sha256: 6b452e4750590a2b5617adc40026f28d2f4903de15f1250e1d1c40bfd68ed55e
+    x-checker-data:
+      type: gnome
+      name: libsecret
+      stable-only: true
+- name: windsurf
+  buildsystem: simple
+  build-commands:
+  - install -D windsurf.sh /app/bin/windsurf
+  - install -Dm644 windsurf_64.png /app/share/icons/hicolor/64x64/apps/com.windsurf.ide.png
+  - install -Dm644 windsurf_128.png /app/share/icons/hicolor/128x128/apps/com.windsurf.ide.png
+  - install -Dm644 windsurf_256.png /app/share/icons/hicolor/256x256/apps/com.windsurf.ide.png
+  - install -Dm644 windsurf_512.png /app/share/icons/hicolor/512x512/apps/com.windsurf.ide.png
+  - install -Dm644 com.windsurf.ide.metainfo.xml -t /app/share/metainfo
+  - install -Dm644 com.windsurf.ide.desktop -t /app/share/applications
+  - install -Dm644 com.windsurf.ide-url-handler.desktop -t /app/share/applications
+  - install -Dm644 com.windsurf.ide-workspace.xml -t /app/share/mime/packages
+  - install -Dm644 npmrc -t /app/etc
+  - install -Dm644 flatpak-warning.txt -t /app/share/windsurf
+  - install -D apply_extra -t /app/bin
+  - cp /usr/bin/ar /app/bin
+  - ARCH_TRIPLE=$(gcc --print-multiarch) && cp /usr/lib/${ARCH_TRIPLE}/libbfd-*.so /app/lib
+  - ARCH_TRIPLE=$(gcc --print-multiarch) && ln -s /usr/lib/${ARCH_TRIPLE}/libtinfo.so /app/lib/libtinfo.so.5
+  - mkdir /app/tools
+  sources:
+  - type: script
+    dest-filename: apply_extra
+    commands:
+    - tar xzf windsurf.tar.gz
+    - mv Windsurf windsurf
+    - rm windsurf.tar.gz
+  - type: file
+    path: windsurf.sh
+  - type: file
+    path: flatpak-warning.txt
+  - type: file
+    path: npmrc
+  - type: file
+    path: com.windsurf.ide.metainfo.xml
+  - type: file
+    path: com.windsurf.ide.desktop
+  - type: file
+    path: com.windsurf.ide-url-handler.desktop
+  - type: file
+    path: com.windsurf.ide-workspace.xml
+  - type: file
+    path: icons/windsurf_64.png
+  - type: file
+    path: icons/windsurf_128.png
+  - type: file
+    path: icons/windsurf_256.png
+  - type: file
+    path: icons/windsurf_512.png
+  - type: extra-data
+    filename: windsurf.tar.gz
+    only-arches:
+    - x86_64
+    url: https://windsurf-stable.codeiumdata.com/linux-x64/stable/b8f002c02d165600299a109bf21d02d139c52644/Windsurf-linux-x64-1.12.2.tar.gz
+    sha256: ae1d3075237885c56bcb39d5b36f460f2a8ba4e4038c63f1d0b5795178e77c43
+    size: 193551966
+    x-checker-data:
+      type: json
+      url: https://windsurf-stable.codeium.com/api/update/linux-x64/stable/latest
+      version-query: .windsurfVersion
+      timestamp-query: null
+      url-query: .url
+      is-main-source: true
+- name: kerberos
+  subdir: src
+  post-install:
+  - install -Dm644 ../krb5.conf /app/etc/krb5.conf
+  sources:
+  - type: archive
+    url: https://kerberos.org/dist/krb5/1.20/krb5-1.20.tar.gz
+    sha256: 7e022bdd3c851830173f9faaa006a230a0e0fdad4c953e85bff4bf0da036e12f
+  - type: file
+    path: krb5.conf
+- name: host-spawn
+  buildsystem: simple
+  build-commands:
+  - install -Dm755 host-spawn /app/bin/host-spawn
+  sources:
+  - type: file
+    url: https://github.com/1player/host-spawn/releases/download/v1.6.1/host-spawn-x86_64
+    sha256: 733746ab498e07d065cbecf80bacd447eb21846d1462e8fe23fdd9d9dc977b50
+    dest-filename: host-spawn
+    only-arches:
+    - x86_64
+    x-checker-data:
+      type: json
+      url: https://api.github.com/repos/1player/host-spawn/releases/latest
+      version-query: .tag_name
+      timestamp-query: .published_at
+      url-query: '"https://github.com/1player/host-spawn/releases/download/" + $version + "/host-spawn-x86_64"'
+  - type: file
+    url: https://github.com/1player/host-spawn/releases/download/v1.6.1/host-spawn-aarch64
+    sha256: 71b7744a4d0b29279523cc0f0ed1a7af5e9555510bd9e6d4685391b59faefaac
+    dest-filename: host-spawn
+    only-arches:
+    - aarch64
+    x-checker-data:
+      type: json
+      url: https://api.github.com/repos/1player/host-spawn/releases/latest
+      version-query: .tag_name
+      timestamp-query: .published_at
+      url-query: '"https://github.com/1player/host-spawn/releases/download/" + $version + "/host-spawn-aarch64"'
