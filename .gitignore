@@ -1,8 +1,53 @@
-.flatpak-builder
-repo
-com.windsurf.ide.flatpak
-.claude
-__pycache__
-vscodium-flatpak-src
-windsurf-flatpak-bak
-windsurf-tarball-src
+# Flatpak build artifacts
+.flatpak-builder/
+build-dir/
+repo/
+*.flatpak
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Reference and backup directories
+vscodium-flatpak-src/
+windsurf-flatpak-bak/
+windsurf-tarball-src/
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# Local development
+.env
+.env.local
+
+# Test artifacts
+test_*.py
+*.log
