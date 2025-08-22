@@ -1,0 +1,48 @@
+name: Windsurf Version Update
+
+on:
+  schedule:
+    # Check for Windsurf updates every 6 hours
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    # Allow manual triggering
+  repository_dispatch:
+    # Allow external triggering
+    types: [windsurf-update]
+
+jobs:
+  check-windsurf-update:
+    name: Check for Windsurf Updates
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+      pull-requests: write
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r scripts/requirements.txt
+          
+      - name: Check for Windsurf updates
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_OWNER: ${{ github.repository_owner }}
+          GITHUB_REPO: ${{ github.event.repository.name }}
+        run: |
+          python -m scripts.main check-windsurf
+          
+      - name: Output result
+        run: |
+          echo "Windsurf update check completed"

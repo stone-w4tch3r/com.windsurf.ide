@@ -1,8 +1,8 @@
-*.deb
 .flatpak-builder
 repo
-single-file-repo
 com.windsurf.ide.flatpak
 .claude
+__pycache__
 vscodium-flatpak-src
 windsurf-flatpak-bak
+windsurf-tarball-src
