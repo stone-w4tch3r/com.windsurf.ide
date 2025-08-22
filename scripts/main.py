@@ -4,7 +4,15 @@ import argparse
 import logging
 import os
 import sys
+import traceback
 from typing import Optional
+
+try:
+    from dotenv import load_dotenv
+    # Load .env file if it exists
+    load_dotenv()
+except ImportError:
+    pass
 
 from .github_client import GitHubClient
 from .windsurf_updater import WindsurfUpdater
@@ -54,9 +62,12 @@ def cmd_check_windsurf(args) -> int:
             
     except WindsurfAutomationError as e:
         print(f"❌ Windsurf update failed: {e}")
+        if logging.getLogger().level <= logging.DEBUG:
+            traceback.print_exc()
         return 1
     except Exception as e:
         print(f"💥 Unexpected error: {e}")
+        traceback.print_exc()
         return 1
 
 
@@ -77,9 +88,12 @@ def cmd_check_vscodium(args) -> int:
             
     except WindsurfAutomationError as e:
         print(f"❌ VSCodium update failed: {e}")
+        if logging.getLogger().level <= logging.DEBUG:
+            traceback.print_exc()
         return 1
     except Exception as e:
         print(f"💥 Unexpected error: {e}")
+        traceback.print_exc()
         return 1
 
 
@@ -107,6 +121,7 @@ def cmd_validate(args) -> int:
             
     except Exception as e:
         print(f"💥 Validation error: {e}")
+        traceback.print_exc()
         return 1
 
 

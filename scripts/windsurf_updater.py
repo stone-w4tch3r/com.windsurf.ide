@@ -98,6 +98,7 @@ class WindsurfUpdater:
             
         except Exception as e:
             logger.error(f"Failed to update Windsurf: {e}")
+            logger.debug("Traceback:", exc_info=True)
             raise
     
     def _extract_current_version(self, manifest_data: dict) -> str:
@@ -118,7 +119,7 @@ class WindsurfUpdater:
             windsurf_module = None
             
             for module in modules:
-                if module.get("name") == "windsurf":
+                if isinstance(module, dict) and module.get("name") == "windsurf":
                     windsurf_module = module
                     break
             
@@ -160,7 +161,7 @@ class WindsurfUpdater:
             windsurf_module = None
             
             for module in modules:
-                if module.get("name") == "windsurf":
+                if isinstance(module, dict) and module.get("name") == "windsurf":
                     windsurf_module = module
                     break
             

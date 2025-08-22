@@ -34,16 +34,21 @@ class FlatpakValidator:
             "modules": {
                 "type": "array",
                 "items": {
-                    "type": "object",
-                    "required": ["name"],
-                    "properties": {
-                        "name": {"type": "string"},
-                        "buildsystem": {"type": "string"},
-                        "sources": {
-                            "type": "array",
-                            "items": {"type": "object"}
+                    "oneOf": [
+                        {"type": "string"},  # Shared module reference
+                        {
+                            "type": "object",
+                            "required": ["name"],
+                            "properties": {
+                                "name": {"type": "string"},
+                                "buildsystem": {"type": "string"},
+                                "sources": {
+                                    "type": "array",
+                                    "items": {"type": "object"}
+                                }
+                            }
                         }
-                    }
+                    ]
                 }
             }
         }
@@ -107,14 +112,17 @@ class FlatpakValidator:
             if manifest_data.get("app-id") != "com.windsurf.ide":
                 issues.append("App ID must be 'com.windsurf.ide'")
             
-            if manifest_data.get("command") != "windsurf":
-                issues.append("Command must be 'windsurf'")
+            if manifest_data.get("command") != "com.windsurf.ide":
+                issues.append("Command must be 'com.windsurf.ide'")
             
             # Check for windsurf module
             modules = manifest_data.get("modules", [])
             windsurf_module = None
             for module in modules:
-                if module.get("name") == "windsurf":
+                # Skip string module references
+                if isinstance(module, str):
+                    continue
+                if isinstance(module, dict) and module.get("name") == "windsurf":
                     windsurf_module = module
                     break
             
@@ -192,8 +200,14 @@ class FlatpakValidator:
         
         module_names = set()
         for i, module in enumerate(modules):
+            # Handle shared module references (strings)
+            if isinstance(module, str):
+                if not module.endswith('.json'):
+                    issues.append(f"Shared module reference {i} should end with .json: {module}")
+                continue
+            
             if not isinstance(module, dict):
-                issues.append(f"Module {i} is not an object")
+                issues.append(f"Module {i} is not an object or string")
                 continue
             
             name = module.get("name")
@@ -304,14 +318,14 @@ class FlatpakValidator:
                 url = source.get("url", "")
                 if "windsurf" not in url.lower():
                     issues.append("Extra-data URL does not appear to be a Windsurf download")
-            elif source.get("type") == "file" and source.get("path") == "windsurf.sh":
+            elif source.get("type") == "script" and source.get("dest-filename") == "apply_extra":
                 has_windsurf_script = True
         
         if not has_extra_data:
             issues.append("Windsurf module missing extra-data source")
         
         if not has_windsurf_script:
-            issues.append("Windsurf module missing windsurf.sh script")
+            issues.append("Windsurf module missing apply_extra script")
         
         return issues
     
@@ -347,7 +361,7 @@ class FlatpakValidator:
         """Extract version from Windsurf URL."""
         modules = manifest_data.get("modules", [])
         for module in modules:
-            if module.get("name") == "windsurf":
+            if isinstance(module, dict) and module.get("name") == "windsurf":
                 sources = module.get("sources", [])
                 for source in sources:
                     if source.get("type") == "extra-data":
