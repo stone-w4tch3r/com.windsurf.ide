@@ -4,11 +4,9 @@ on:
   pull_request:
     paths:
       - 'com.windsurf.ide.yaml'
-      - 'com.windsurf.ide.desktop'
-      - 'com.windsurf.ide.metainfo.xml'
+      - 'assets/**'
       - 'windsurf.sh'
       - '*.conf'
-      - 'icons/**'
   push:
     branches: [master]
   workflow_dispatch:

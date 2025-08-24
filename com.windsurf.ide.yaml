@@ -94,21 +94,21 @@ modules:
           - mv Windsurf windsurf
           - rm windsurf.tar.gz
       - type: file
-        path: com.windsurf.ide.metainfo.xml
+        path: assets/com.windsurf.ide.metainfo.xml
       - type: file
-        path: com.windsurf.ide.desktop
+        path: assets/com.windsurf.ide.desktop
       - type: file
-        path: com.windsurf.ide-url-handler.desktop
+        path: assets/com.windsurf.ide-url-handler.desktop
       - type: file
-        path: com.windsurf.ide-workspace.xml
+        path: assets/com.windsurf.ide-workspace.xml
       - type: file
-        path: icons/windsurf_64.png
+        path: assets/icons/windsurf_64.png
       - type: file
-        path: icons/windsurf_128.png
+        path: assets/icons/windsurf_128.png
       - type: file
-        path: icons/windsurf_256.png
+        path: assets/icons/windsurf_256.png
       - type: file
-        path: icons/windsurf_512.png
+        path: assets/icons/windsurf_512.png
       - type: extra-data
         filename: windsurf.tar.gz
         only-arches: [x86_64]
