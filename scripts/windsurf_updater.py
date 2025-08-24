@@ -37,8 +37,11 @@ class WindsurfUpdater:
             ManifestTransformError: If manifest transformation fails
         """
         try:
-            # Fetch latest Windsurf version
+            # Ensure repository auto-merge is enabled
             logger.info("Checking for Windsurf updates")
+            self.github.enable_repository_auto_merge()
+            
+            # Fetch latest Windsurf version
             windsurf_info = self.version_fetcher.fetch_windsurf_version()
             
             # Get current manifest

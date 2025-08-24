@@ -287,3 +287,38 @@ class GitHubClient:
             
         except requests.RequestException as e:
             raise NetworkError(f"Failed to get SHA for {path}: {e}") from e
+    
+    def enable_repository_auto_merge(self) -> bool:
+        """Enable auto-merge feature on the repository.
+        
+        Returns:
+            True if auto-merge was enabled or already enabled, False if failed
+            
+        Raises:
+            NetworkError: If API request fails
+        """
+        try:
+            url = f"https://api.github.com/repos/{self.owner}/{self.repo}"
+            
+            # First check if auto-merge is already enabled
+            response = self.session.get(url, timeout=self.timeout)
+            response.raise_for_status()
+            
+            current_settings = response.json()
+            if current_settings.get("allow_auto_merge", False):
+                logger.info("Repository auto-merge already enabled")
+                return True
+            
+            # Enable auto-merge
+            logger.info("Enabling repository auto-merge feature")
+            data = {"allow_auto_merge": True}
+            
+            response = self.session.patch(url, json=data, timeout=self.timeout)
+            response.raise_for_status()
+            
+            logger.info("Repository auto-merge enabled successfully")
+            return True
+            
+        except requests.RequestException as e:
+            logger.warning(f"Failed to enable repository auto-merge: {e}")
+            return False
