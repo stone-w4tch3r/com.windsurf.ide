@@ -46,7 +46,7 @@ class WindsurfUpdater:
             if not current_manifest:
                 raise ValidationError("Current manifest not found")
             
-            # Parse current manifest
+            # Parse current manifest for version extraction
             manifest_data = yaml.safe_load(current_manifest)
             current_version = self._extract_current_version(manifest_data)
             
@@ -57,8 +57,8 @@ class WindsurfUpdater:
                 logger.info("Windsurf is already up to date")
                 return None
             
-            # Update manifest
-            updated_manifest = self._update_manifest(manifest_data, windsurf_info)
+            # Update manifest using text replacement to preserve formatting
+            updated_manifest = self._update_manifest(current_manifest, windsurf_info)
             
             # Create branch and PR
             branch_name = f"update-windsurf-{windsurf_info.version}"
@@ -142,54 +142,55 @@ class WindsurfUpdater:
         except (KeyError, TypeError) as e:
             raise ValidationError(f"Invalid manifest structure: {e}") from e
     
-    def _update_manifest(self, manifest_data: dict, windsurf_info: WindsurfVersionInfo) -> str:
-        """Update manifest with new Windsurf version.
+    def _update_manifest(self, manifest_content: str, windsurf_info: WindsurfVersionInfo) -> str:
+        """Update manifest with new Windsurf version using text replacement.
         
         Args:
-            manifest_data: Parsed manifest YAML
+            manifest_content: Original manifest file content
             windsurf_info: New Windsurf version information
             
         Returns:
-            Updated manifest as YAML string
+            Updated manifest content with preserved formatting
             
         Raises:
             ManifestTransformError: If update fails
         """
         try:
-            # Find windsurf module
-            modules = manifest_data.get("modules", [])
-            windsurf_module = None
+            updated_content = manifest_content
             
-            for module in modules:
-                if isinstance(module, dict) and module.get("name") == "windsurf":
-                    windsurf_module = module
-                    break
+            # Update URL - find the extra-data section and replace URL
+            url_pattern = r'(url:\s+)https://windsurf-stable\.codeiumdata\.com[^\n]+'
+            def url_repl(match):
+                return match.group(1) + windsurf_info.url
+            updated_content = re.sub(url_pattern, url_repl, updated_content)
             
-            if not windsurf_module:
-                raise ManifestTransformError("Windsurf module not found in manifest")
+            # Update SHA256 - only in the extra-data section (after the URL)
+            # Look for sha256 that comes after our Windsurf URL
+            windsurf_section_pattern = r'(url:\s+https://windsurf-stable\.codeiumdata\.com[^\n]+\n.*?sha256:\s+)([a-f0-9]{64})'
+            def windsurf_sha256_repl(match):
+                return match.group(1) + windsurf_info.sha256
+            updated_content = re.sub(windsurf_section_pattern, windsurf_sha256_repl, updated_content, flags=re.DOTALL)
             
-            # Update extra-data source
-            sources = windsurf_module.get("sources", [])
-            for source in sources:
-                if source.get("type") == "extra-data":
-                    source["url"] = windsurf_info.url
-                    source["sha256"] = windsurf_info.sha256
-                    source["size"] = windsurf_info.size
-                    break
-            else:
-                raise ManifestTransformError("Extra-data source not found in windsurf module")
+            # Update size - only in the extra-data section (after the SHA256)
+            windsurf_size_pattern = r'(sha256:\s+' + re.escape(windsurf_info.sha256) + r'\n.*?size:\s+)(\d+)'
+            def windsurf_size_repl(match):
+                return match.group(1) + str(windsurf_info.size)
+            updated_content = re.sub(windsurf_size_pattern, windsurf_size_repl, updated_content, flags=re.DOTALL)
             
-            # Convert back to YAML with proper formatting
-            yaml_content = yaml.dump(
-                manifest_data,
-                default_flow_style=False,
-                allow_unicode=True,
-                sort_keys=False,
-                width=100,
-                indent=2
-            )
+            # Verify changes were made
+            if updated_content == manifest_content:
+                raise ManifestTransformError("No changes were made to manifest - patterns may not match")
             
-            return yaml_content
+            # Verify the new values are present
+            if windsurf_info.url not in updated_content:
+                raise ManifestTransformError("Failed to update URL in manifest")
+            if windsurf_info.sha256 not in updated_content:
+                raise ManifestTransformError("Failed to update SHA256 in manifest")
+            if str(windsurf_info.size) not in updated_content:
+                raise ManifestTransformError("Failed to update size in manifest")
+            
+            logger.info("Successfully updated manifest with preserved formatting")
+            return updated_content
             
         except Exception as e:
             raise ManifestTransformError(f"Failed to update manifest: {e}") from e
