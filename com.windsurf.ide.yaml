@@ -91,6 +91,10 @@ modules:
           - tar xzf windsurf.tar.gz
           - mv Windsurf windsurf
           - rm windsurf.tar.gz
+          - |
+            # Apply KDE desktop name fix
+            cd windsurf/resources/app
+            sed -i 's/"desktopName": "windsurf.desktop"/"desktopName": "com.windsurf.ide.desktop"/' package.json
       - type: file
         path: assets/com.windsurf.ide.metainfo.xml
       - type: file

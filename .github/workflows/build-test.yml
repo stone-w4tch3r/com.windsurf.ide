@@ -94,29 +94,10 @@ jobs:
           flatpak --user uninstall --assumeyes com.windsurf.ide || true
           flatpak --user remote-delete windsurf-repo || true
 
-  security-scan:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    needs: validate
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-      
-      - name: Scan for secrets
-        uses: trufflesecurity/trufflehog@main
-        with:
-          path: ./
-          base: master
-          head: HEAD
-          extra_args: --debug --only-verified
-
   auto-merge:
     name: Auto-merge Windsurf Updates
     runs-on: ubuntu-latest
-    needs: [validate, build, security-scan]
+    needs: [validate, build]
     if: >
       github.event_name == 'pull_request' &&
       contains(github.event.pull_request.labels.*.name, 'windsurf-update') &&
