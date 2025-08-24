@@ -79,8 +79,6 @@ modules:
       - install -Dm644 $FLATPAK_ID.desktop -t /app/share/applications
       - install -Dm644 $FLATPAK_ID-url-handler.desktop -t /app/share/applications
       - install -Dm644 $FLATPAK_ID-workspace.xml -t /app/share/mime/packages
-      - install -Dm644 npmrc -t /app/etc
-      - install -Dm644 flatpak-warning.txt -t /app/share/windsurf
       - install -D apply_extra -t /app/bin
       - cp /usr/bin/ar /app/bin
       - ARCH_TRIPLE=$(gcc --print-multiarch) && cp /usr/lib/${ARCH_TRIPLE}/libbfd-*.so /app/lib
@@ -93,6 +91,8 @@ modules:
           - tar xzf windsurf.tar.gz
           - mv Windsurf windsurf
           - rm windsurf.tar.gz
+          # fix kde wayland window icons
+          - patch --fuzz=3 windsurf/resources/app/package.json -i package.json.patch
       - type: file
         path: assets/com.windsurf.ide.metainfo.xml
       - type: file
@@ -109,6 +109,8 @@ modules:
         path: assets/icons/windsurf_256.png
       - type: file
         path: assets/icons/windsurf_512.png
+      - type: file
+        path: package.json.patch
       - type: extra-data
         filename: windsurf.tar.gz
         only-arches: [x86_64]
