@@ -1,98 +1,21 @@
-# Windsurf Flatpak<!-- omit in toc -->
+# Windsurf Flatpak
 
-🚨 Warning: This is an unofficial Flatpak build of Windsurf, generated from the official Codeium-built .tar.gz packages from windsurf.com.
+🚨 Warning: This is an unofficial Flatpak build of Windsurf, automatically generated from the official .tar.gz packages from windsurf.com. Based on com.vscodium.codium flatpak packages.
 
-## Table of Contents<!-- omit in toc -->
-
-- [Usage](#usage)
-  - [Execute commands in the host system.](#execute-commands-in-the-host-system)
-  - [Use host shell in the integrated terminal.](#use-host-shell-in-the-integrated-terminal)
-  - [Support for language extension.](#support-for-language-extension)
-- [Support](#support)
+🚨🚨 Warning: flatpak version of Windsurf is not straightforward to use. Stick to native packages if you are not confident in linux and/or value simplicity.
 
 ## Usage
 
-Most functionality works out of the box, though please note that flatpak runs in an isolated environment and some work is necessary to enable those features.
+Basic text editor/extensions functionality works, but for any real development you need to setup flatpak SDK extensions or tweak isolation.
 
-### Execute commands in the host system.
+This will not work from VScode out of the box:
+- using docker-related functions
+- building apps and managing dependencies, eg `npm install` or `dotnet build`
+- connecting or ssh-ing into local VMs and containers
+- many more
 
-To execute commands on the host system, run inside the sandbox:
-
-`$ flatpak-spawn --host <COMMAND>`
-
-or
-
-`$ host-spawn <COMMAND>`
-
-- Most users seem to report a better experience with `host-spawn`
-
-### Use host shell in the integrated terminal.
-
-Another option to execute commands is to use your host shell in the integrated terminal instead of the sandbox one.
-
-For that go to `File -> Preferences -> Settings` and find `Features > Terminal > Integrated > Profiles`, then click on `Edit in settings.json` (The important thing here is to open settings.json)
-
-And make sure that you have the following lines there:
-
-`flatpak-spawn --host`
-
-```
-{
-  "terminal.integrated.defaultProfile.linux": "bash",
-  "terminal.integrated.profiles.linux": {
-    "bash": {
-      "path": "/usr/bin/flatpak-spawn",
-      "args": ["--host", "--env=TERM=xterm-256color", "bash"],
-      "icon": "terminal-bash",
-      "overrideName": true
-    }
-  }
-}
-```
-
-`host-spawn`
-
-```
-{
-  "terminal.integrated.defaultProfile.linux": "bash",
-  "terminal.integrated.profiles.linux": {
-    "bash": {
-      "path": "/app/bin/host-spawn",
-      "args": ["bash"],
-      "icon": "terminal-bash",
-      "overrideName": true
-    }
-  }
-}
-```
-
-- You can change **bash** to any terminal you are using: zsh, fish, sh.
-- `overrideName` allows for the 'name' (or whatever you set it to) of the shell you're using to appear (e.g. normally zsh, fish, sh).
-
-### Support for language extension.
-
-Some Windsurf extensions depend on packages that might exist on your host, but they are not accessible through Flatpak. Like support for programming languages: gcc, python, etc..
-
-**See available SDK:**
-
-```
-$ flatpak run --command=sh com.windsurf.ide
-$ ls /usr/bin (shared runtime)
-$ ls /app/bin (bundled with this flatpak)
-```
-
-**Getting support for additional languages, you have to install SDK extensions, e.g.**
-
-```
-$ flatpak install flathub org.freedesktop.Sdk.Extension.dotnet
-$ flatpak install flathub org.freedesktop.Sdk.Extension.golang
-$ FLATPAK_ENABLE_SDK_EXT=dotnet,golang flatpak run com.windsurf.ide
-```
-
-**Finding other SDK**
-
-`flatpak search <TEXT>`
+For this you need to configure integration with host. Ask your AI or see [VScodium repo and docs](https://github.com/flathub/com.vscodium.codium/).
 
 ## Support
 
-Please open issues under: https://github.com/flathub/com.windsurf.ide/issues
+This package is mostly based on VScodium. Look at their repo and issues first if you will have any problems. Before leaving feedback here, ensure your situation does not reproduce in VScodium flatpak.

@@ -10,8 +10,9 @@
   <summary>AI-powered IDE that keeps you in flow.</summary>
   <description>
     <p>Windsurf is an AI-powered IDE that understands your codebase, assists with complex tasks, and helps you stay in flow.</p>
-    <p>IMPORTANT: To use certain features in this flatpacked version (like the integrated terminal), please read the linked documentation.</p>
-    <p>This is the proprietary Codeium build of Windsurf, packaged into a Flatpak. This repackaging is not supported by Codeium.</p>
+    <p>This is an unofficially packaged application, flatpak version is based on VScodium. It is not supported by Codeium/Windsurf team.</p>
+    <p>IMPORTANT: flatpak version of Windsurf is not straightforward to use. Stick to native packages if you are not confident in linux and/or value simplicity.</p>
+    <p>For more information, see [README](https://github.com/stone-w4tch3r/com.windsurf.ide) and [VScodium repo and docs](https://github.com/flathub/com.vscodium.codium/)</p>
   </description>
   <screenshots>
     <screenshot type="default">
@@ -24,7 +25,7 @@
     <content_attribute id="social-info">moderate</content_attribute>
   </content_rating>
   <releases>
-    <release version="1.11.5" date="2025-08-08">
+    <release version="1.12.2" date="2025-08-22">
       <description>Latest stable release</description>
     </release>
   </releases>

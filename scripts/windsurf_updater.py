@@ -2,6 +2,7 @@
 
 import logging
 import re
+from datetime import datetime
 from typing import Optional
 import yaml
 
@@ -63,6 +64,14 @@ class WindsurfUpdater:
             # Update manifest using text replacement to preserve formatting
             updated_manifest = self._update_manifest(current_manifest, windsurf_info)
             
+            # Update metainfo.xml with new version and date
+            metainfo_content = self.github.get_file_content("com.windsurf.ide.metainfo.xml")
+            if metainfo_content:
+                updated_metainfo = self._update_metainfo(metainfo_content, windsurf_info)
+            else:
+                logger.warning("metainfo.xml not found, skipping metainfo update")
+                updated_metainfo = None
+            
             # Create branch and PR
             branch_name = f"update-windsurf-{windsurf_info.version}"
             commit_message = f"Update Windsurf to version {windsurf_info.version}"
@@ -70,8 +79,9 @@ class WindsurfUpdater:
             # Create branch
             self.github.create_branch(branch_name)
             
-            # Get current file SHA
+            # Get current file SHAs
             manifest_sha = self.github.get_file_sha("com.windsurf.ide.yaml")
+            metainfo_sha = self.github.get_file_sha("com.windsurf.ide.metainfo.xml") if updated_metainfo else None
             
             # Update manifest file
             self.github.create_or_update_file(
@@ -81,6 +91,16 @@ class WindsurfUpdater:
                 branch=branch_name,
                 sha=manifest_sha
             )
+            
+            # Update metainfo file if we have content
+            if updated_metainfo and metainfo_sha:
+                self.github.create_or_update_file(
+                    path="com.windsurf.ide.metainfo.xml",
+                    content=updated_metainfo,
+                    message=commit_message,
+                    branch=branch_name,
+                    sha=metainfo_sha
+                )
             
             # Create PR
             pr_title = f"Update Windsurf to {windsurf_info.version}"
@@ -198,6 +218,43 @@ class WindsurfUpdater:
         except Exception as e:
             raise ManifestTransformError(f"Failed to update manifest: {e}") from e
     
+    def _update_metainfo(self, metainfo_content: str, windsurf_info: WindsurfVersionInfo) -> str:
+        """Update metainfo.xml with new version and date.
+        
+        Args:
+            metainfo_content: Original metainfo.xml file content
+            windsurf_info: New Windsurf version information
+            
+        Returns:
+            Updated metainfo.xml content
+            
+        Raises:
+            ManifestTransformError: If update fails
+        """
+        try:
+            updated_content = metainfo_content
+            current_date = datetime.now().strftime("%Y-%m-%d")
+            
+            # Update the release version and date in the releases section
+            # Pattern matches: <release version="1.12.2" date="2025-08-22">
+            release_pattern = r'(<release\s+version=")[^"]+("\s+date=")[^"]+(">)'
+            def release_repl(match):
+                return match.group(1) + windsurf_info.version + match.group(2) + current_date + match.group(3)
+            
+            updated_content = re.sub(release_pattern, release_repl, updated_content)
+            
+            # Verify changes were made
+            if windsurf_info.version not in updated_content:
+                raise ManifestTransformError("Failed to update version in metainfo.xml")
+            if current_date not in updated_content:
+                raise ManifestTransformError("Failed to update date in metainfo.xml")
+            
+            logger.info(f"Successfully updated metainfo.xml with version {windsurf_info.version} and date {current_date}")
+            return updated_content
+            
+        except Exception as e:
+            raise ManifestTransformError(f"Failed to update metainfo.xml: {e}") from e
+    
     def _generate_pr_body(self, current_version: str, windsurf_info: WindsurfVersionInfo) -> str:
         """Generate PR description.
         
@@ -217,6 +274,7 @@ class WindsurfUpdater:
 - Updated Windsurf binary URL to: `{windsurf_info.url}`
 - Updated SHA256: `{windsurf_info.sha256}`
 - Updated file size: `{windsurf_info.size:,} bytes`
+- Updated metainfo.xml with new version and current date
 
 ### Automation
 This PR was created automatically by the Windsurf update bot.
