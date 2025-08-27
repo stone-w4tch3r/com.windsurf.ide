@@ -117,15 +117,23 @@ class FlatpakPagesPublisher:
             passphrase = os.getenv("FLATPAK_GPG_PASSPHRASE")
             
             cmd = [
-                "ostree", "--repo", str(self.repo_path), 
-                "summary", "--update", 
+                "ostree", "summary", "--update", 
+                "--repo", str(self.repo_path),
                 f"--gpg-sign={self.gpg_key_id}",
                 "--gpg-homedir", os.path.expanduser("~/.gnupg")
             ]
             
+            # Set up GPG environment for signing
+            env = {
+                **os.environ,
+                "GPG_TTY": "",
+                "GNUPGHOME": os.path.expanduser("~/.gnupg")
+            }
+            
+            # Use a more robust signing approach
             process = subprocess.run(
-                cmd,
-                env={**os.environ, "GPG_TTY": "", "GNUPGHOME": os.path.expanduser("~/.gnupg")},
+                cmd + ["--gpg-passphrase-file", "/dev/stdin"],
+                env=env,
                 input=passphrase,
                 text=True,
                 capture_output=True
@@ -138,8 +146,9 @@ class FlatpakPagesPublisher:
             # Generate static deltas for better performance
             try:
                 subprocess.run([
-                    "ostree", "--repo", str(self.repo_path),
-                    "static-delta", "generate", "--min-fallback-size", "0"
+                    "ostree", "static-delta", "generate", 
+                    "--repo", str(self.repo_path),
+                    "--min-fallback-size", "0"
                 ], check=True, capture_output=True)
                 logger.info("Generated static deltas")
             except subprocess.CalledProcessError as e:
@@ -161,7 +170,8 @@ class FlatpakPagesPublisher:
         try:
             # Get repository summary
             process = subprocess.run([
-                "ostree", "--repo", str(self.repo_path), "summary", "--view"
+                "ostree", "summary", "--view",
+                "--repo", str(self.repo_path)
             ], capture_output=True, text=True, check=True)
             
             summary_output = process.stdout
