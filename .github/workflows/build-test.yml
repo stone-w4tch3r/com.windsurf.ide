@@ -88,6 +88,13 @@ jobs:
           # Test help command
           timeout 30s flatpak --user run com.windsurf.ide --help || true
           
+      - name: Upload repository artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: flatpak-repo
+          path: repo/
+          retention-days: 7
+
       - name: Clean up
         if: always()
         run: |

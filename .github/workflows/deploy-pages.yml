@@ -1,7 +1,10 @@
-name: Build and Deploy to GitHub Pages
+name: Deploy Signed Repository to GitHub Pages
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Build and Test Flatpak"]
+    types:
+      - completed
     branches: [master]
   workflow_dispatch:
 
@@ -9,6 +12,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  actions: read
 
 # Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
 concurrency:
@@ -16,12 +20,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build-and-sign:
-    name: Build and Sign Flatpak
+  sign-and-deploy:
+    name: Sign Repository and Deploy to Pages
     runs-on: ubuntu-latest
-    container: 
-      image: freedesktopsdk/flatpak:latest
-      options: --privileged
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     
     steps:
       - name: Checkout repository
@@ -29,30 +31,82 @@ jobs:
         with:
           submodules: true
           
-      - name: Set up Python and dependencies
-        run: |
-          # Install Python packages in container
-          pip3 install --break-system-packages pyyaml requests
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
           
-      - name: Setup Flatpak repositories
+      - name: Install dependencies
         run: |
-          # Add flathub repository
-          flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          python -m pip install --upgrade pip
+          pip install -r scripts/requirements.txt
+          sudo apt-get update
+          sudo apt-get install -y ostree
           
-      - name: Install Flatpak SDK and runtime  
+      - name: Download build artifacts from workflow run
+        if: github.event_name != 'workflow_dispatch'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Get the workflow run that triggered this
+            const workflowRun = context.payload.workflow_run;
+            console.log('Workflow run ID:', workflowRun.id);
+            
+            // List artifacts from the build workflow
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: workflowRun.id,
+            });
+            
+            console.log('Available artifacts:', artifacts.data.artifacts.length);
+            
+            // Look for repo artifact (from build-test workflow)
+            const repoArtifact = artifacts.data.artifacts.find(artifact => 
+              artifact.name === 'flatpak-repo' || artifact.name.includes('repo')
+            );
+            
+            if (repoArtifact) {
+              console.log('Found repo artifact:', repoArtifact.name);
+              
+              // Download the artifact
+              const download = await github.rest.actions.downloadArtifact({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                artifact_id: repoArtifact.id,
+                archive_format: 'zip',
+              });
+              
+              // Save to file
+              const fs = require('fs');
+              fs.writeFileSync('repo-artifact.zip', Buffer.from(download.data));
+            } else {
+              console.log('No repo artifact found, will rebuild');
+            }
+            
+      - name: Extract repository or rebuild if needed
         run: |
-          # Install required runtimes
-          flatpak install -y flathub org.freedesktop.Sdk//24.08
-          flatpak install -y flathub org.freedesktop.Platform//24.08
-          flatpak install -y flathub app/org.electronjs.Electron2.BaseApp//24.08
-          
-      - name: Build Flatpak
-        run: |
-          # Clean previous builds
-          rm -rf build-dir repo .flatpak-builder
-          
-          # Build the Flatpak
-          flatpak-builder --install-deps-from=flathub --repo=repo --force-clean build-dir com.windsurf.ide.yaml
+          if [ -f "repo-artifact.zip" ]; then
+            echo "📦 Using artifacts from build workflow"
+            unzip -q repo-artifact.zip
+            ls -la
+          else
+            echo "🏗️ No artifacts found, rebuilding..."
+            sudo apt-get install -y flatpak flatpak-builder
+            sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+            
+            # Extract SDK version from manifest
+            SDK_VERSION=$(grep "runtime-version:" com.windsurf.ide.yaml | awk '{print $2}' | tr -d "'")
+            BASE_VERSION=$(grep "base-version:" com.windsurf.ide.yaml | awk '{print $2}' | tr -d "'")
+            
+            # Install SDK and runtime
+            sudo flatpak install -y flathub org.freedesktop.Sdk//$SDK_VERSION
+            sudo flatpak install -y flathub org.electronjs.Electron2.BaseApp//$BASE_VERSION
+            
+            # Build Flatpak
+            rm -rf build-dir repo .flatpak-builder
+            flatpak-builder --disable-rofiles-fuse --repo=repo --force-clean build-dir com.windsurf.ide.yaml
+          fi
           
       - name: Sign repository and generate Pages content
         env:
