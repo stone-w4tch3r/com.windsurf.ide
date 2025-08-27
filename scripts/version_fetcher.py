@@ -7,7 +7,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from .types import WindsurfVersionInfo, VSCodiumVersionInfo
+from .windsurf_types import WindsurfVersionInfo, VSCodiumVersionInfo
 from .exceptions import VersionFetchError, NetworkError
 
 

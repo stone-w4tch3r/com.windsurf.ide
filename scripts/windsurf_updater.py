@@ -8,7 +8,7 @@ import yaml
 
 from .version_fetcher import VersionFetcher
 from .github_client import GitHubClient
-from .types import WindsurfVersionInfo
+from .windsurf_types import WindsurfVersionInfo
 from .exceptions import ValidationError, ManifestTransformError
 
 
