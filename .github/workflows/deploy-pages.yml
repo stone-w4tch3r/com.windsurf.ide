@@ -125,7 +125,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    needs: build-and-sign
+    needs: sign-and-deploy
     
     steps:
       - name: Setup Pages
