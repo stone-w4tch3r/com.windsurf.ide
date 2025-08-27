@@ -23,7 +23,7 @@ jobs:
   sign-and-deploy:
     name: Sign Repository and Deploy to Pages
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     
     steps:
       - name: Checkout repository
@@ -49,7 +49,7 @@ jobs:
           name: flatpak-repo
           path: repo/
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.workflow_run.id }}
+          run-id: ${{ github.event_name == 'workflow_dispatch' && '17276907343' || github.event.workflow_run.id }}
           
       - name: Check and fix repository structure
         run: |
@@ -90,7 +90,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: sign-and-deploy
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     
     steps:
       - name: Setup Pages
