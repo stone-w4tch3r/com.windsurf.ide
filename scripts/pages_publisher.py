@@ -145,11 +145,17 @@ class FlatpakPagesPublisher:
                 logger.error(f"No refs directory found at {refs_path}")
                 return False
                 
+            # Ensure refs/remotes exists (required by OSTree)
+            refs_remotes_path = refs_path / "remotes"
+            if not refs_remotes_path.exists():
+                logger.info("Creating missing refs/remotes directory")
+                refs_remotes_path.mkdir(parents=True, exist_ok=True)
+                
             # Try basic ostree commands first
             logger.info("Testing basic OSTree commands...")
             try:
                 result = subprocess.run(
-                    ["ostree", "--repo", str(self.repo_path), "refs", "--list"],
+                    ["ostree", "refs", "--repo", str(self.repo_path)],
                     capture_output=True, text=True, check=True
                 )
                 logger.info(f"Available refs: {result.stdout.strip()}")

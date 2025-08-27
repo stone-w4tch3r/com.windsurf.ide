@@ -76,6 +76,12 @@ jobs:
           if [ -d "repo/refs" ]; then
             find repo/refs/ -type d
             ls -la repo/refs/ 2>/dev/null || echo "refs directory empty or inaccessible"
+            
+            # Create refs/remotes directory if missing (required by OSTree)
+            if [ ! -d "repo/refs/remotes" ]; then
+              echo "Creating missing refs/remotes directory"
+              mkdir -p repo/refs/remotes
+            fi
           fi
           
           echo "Checking for config file:"
@@ -87,8 +93,8 @@ jobs:
           fi
           
           echo "Testing ostree commands:"
-          ostree --repo=repo refs --list || echo "Failed to list refs"
-          ostree --repo=repo summary --view || echo "Failed to view summary"
+          ostree refs --repo=repo || echo "Failed to list refs"
+          ostree summary --view --repo=repo || echo "Failed to view summary"
           
       - name: Sign repository and generate Pages content
         env:
