@@ -68,6 +68,28 @@ jobs:
           echo "Final repository structure:"
           find repo/ -type d | head -10
           
+          echo "Checking for OSTree repository structure:"
+          ls -la repo/
+          echo "Looking for refs directory:"
+          find repo/ -name "refs" -type d
+          echo "Contents of refs if it exists:"
+          if [ -d "repo/refs" ]; then
+            find repo/refs/ -type d
+            ls -la repo/refs/ 2>/dev/null || echo "refs directory empty or inaccessible"
+          fi
+          
+          echo "Checking for config file:"
+          if [ -f "repo/config" ]; then
+            echo "OSTree config exists"
+            cat repo/config
+          else
+            echo "No OSTree config found"
+          fi
+          
+          echo "Testing ostree commands:"
+          ostree --repo=repo refs --list || echo "Failed to list refs"
+          ostree --repo=repo summary --view || echo "Failed to view summary"
+          
       - name: Sign repository and generate Pages content
         env:
           FLATPAK_GPG_PRIVATE_KEY: ${{ secrets.FLATPAK_GPG_PRIVATE_KEY }}

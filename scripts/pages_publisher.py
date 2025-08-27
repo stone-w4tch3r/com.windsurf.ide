@@ -125,6 +125,38 @@ class FlatpakPagesPublisher:
             return False
             
         try:
+            # Debug repository structure before signing
+            logger.info(f"Debugging repository structure at {self.repo_path}")
+            
+            # Check if it's a valid OSTree repo
+            config_path = self.repo_path / "config"
+            if not config_path.exists():
+                logger.error(f"No OSTree config found at {config_path}")
+                return False
+                
+            # List repository contents
+            logger.info("Repository directory contents:")
+            for item in self.repo_path.iterdir():
+                logger.info(f"  {item.name}")
+                
+            # Check refs directory
+            refs_path = self.repo_path / "refs"
+            if not refs_path.exists():
+                logger.error(f"No refs directory found at {refs_path}")
+                return False
+                
+            # Try basic ostree commands first
+            logger.info("Testing basic OSTree commands...")
+            try:
+                result = subprocess.run(
+                    ["ostree", "--repo", str(self.repo_path), "refs", "--list"],
+                    capture_output=True, text=True, check=True
+                )
+                logger.info(f"Available refs: {result.stdout.strip()}")
+            except subprocess.CalledProcessError as e:
+                logger.error(f"Failed to list refs: {e.stderr}")
+                return False
+            
             # Update and sign repository summary
             passphrase = os.getenv("FLATPAK_GPG_PASSPHRASE")
             
@@ -134,6 +166,8 @@ class FlatpakPagesPublisher:
                 f"--gpg-sign={self.gpg_key_id}",
                 "--gpg-homedir", os.path.expanduser("~/.gnupg")
             ]
+            
+            logger.info(f"Running command: {' '.join(cmd)}")
             
             # Set up GPG environment for signing
             env = {
