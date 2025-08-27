@@ -69,7 +69,7 @@ jobs:
           flatpak-builder --disable-rofiles-fuse --repo=repo --force-clean build-dir com.windsurf.ide.yaml
           
       - name: Upload repository artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: flatpak-repo
           path: repo/
@@ -99,7 +99,7 @@ jobs:
           sudo apt-get install -y ostree
           
       - name: Download repository artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: flatpak-repo
           path: repo/

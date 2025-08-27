@@ -89,7 +89,7 @@ jobs:
           timeout 30s flatpak --user run com.windsurf.ide --help || true
           
       - name: Upload repository artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: flatpak-repo
           path: repo/
