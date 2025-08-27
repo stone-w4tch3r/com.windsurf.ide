@@ -54,10 +54,22 @@ class FlatpakPagesPublisher:
             # Decode and import private key
             private_key = base64.b64decode(private_key_b64).decode('utf-8')
             
+            # Create GPG config for batch operations
+            gpg_conf = os.path.expanduser("~/.gnupg/gpg.conf")
+            os.makedirs(os.path.dirname(gpg_conf), exist_ok=True)
+            with open(gpg_conf, 'w') as f:
+                f.write("batch\n")
+                f.write("yes\n")
+                f.write("pinentry-mode loopback\n")
+                f.write(f"passphrase {passphrase}\n")
+            
+            # Set permissions
+            os.chmod(gpg_conf, 0o600)
+            os.chmod(os.path.dirname(gpg_conf), 0o700)
+            
             # Import the private key
             process = subprocess.run(
-                ["gpg", "--batch", "--import", "--pinentry-mode", "loopback", 
-                 "--passphrase", passphrase],
+                ["gpg", "--batch", "--import"],
                 input=private_key,
                 text=True,
                 capture_output=True
@@ -130,13 +142,12 @@ class FlatpakPagesPublisher:
                 "GNUPGHOME": os.path.expanduser("~/.gnupg")
             }
             
-            # Use a more robust signing approach
+            # Use GPG agent with pinentry loopback for automated signing
             process = subprocess.run(
-                cmd + ["--gpg-passphrase-file", "/dev/stdin"],
+                cmd,
                 env=env,
-                input=passphrase,
-                text=True,
-                capture_output=True
+                capture_output=True,
+                text=True
             )
             
             if process.returncode != 0:

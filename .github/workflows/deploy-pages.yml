@@ -19,6 +19,9 @@ jobs:
   build-and-sign:
     name: Build and Sign Flatpak
     runs-on: ubuntu-latest
+    container: 
+      image: freedesktopsdk/flatpak:latest
+      options: --privileged
     
     steps:
       - name: Checkout repository
@@ -26,33 +29,22 @@ jobs:
         with:
           submodules: true
           
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-          
-      - name: Install dependencies
+      - name: Set up Python and dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r scripts/requirements.txt
-          
-      - name: Install Flatpak and dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y flatpak flatpak-builder ostree
+          # Install Python packages in container
+          pip3 install --break-system-packages pyyaml requests
           
       - name: Setup Flatpak repositories
         run: |
-          # Add flathub for both system and user
-          sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-          flatpak --user remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          # Add flathub repository
+          flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
           
-      - name: Install Flatpak SDK and runtime
+      - name: Install Flatpak SDK and runtime  
         run: |
-          # Install to user space to avoid permission issues
-          flatpak --user install -y flathub org.freedesktop.Sdk//24.08
-          flatpak --user install -y flathub org.freedesktop.Platform//24.08
-          flatpak --user install -y flathub app/org.electronjs.Electron2.BaseApp//24.08
+          # Install required runtimes
+          flatpak install -y flathub org.freedesktop.Sdk//24.08
+          flatpak install -y flathub org.freedesktop.Platform//24.08
+          flatpak install -y flathub app/org.electronjs.Electron2.BaseApp//24.08
           
       - name: Build Flatpak
         run: |
@@ -60,7 +52,7 @@ jobs:
           rm -rf build-dir repo .flatpak-builder
           
           # Build the Flatpak
-          flatpak-builder --user --install-deps-from=flathub --repo=repo --force-clean build-dir com.windsurf.ide.yaml
+          flatpak-builder --install-deps-from=flathub --repo=repo --force-clean build-dir com.windsurf.ide.yaml
           
       - name: Sign repository and generate Pages content
         env:
