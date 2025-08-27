@@ -163,14 +163,26 @@ class FlatpakPagesPublisher:
                 logger.error(f"Failed to list refs: {e.stderr}")
                 return False
             
-            # Update and sign repository summary
+            # Update and sign repository summary using flatpak build-update-repo
+            # This is compatible with Flatpak 1.14.6 (ostree summary --gpg-sign creates incompatible signatures)
             passphrase = os.getenv("FLATPAK_GPG_PASSPHRASE")
             
+            # Import key to system keyring for flatpak build-update-repo
+            private_key_b64 = os.getenv("FLATPAK_GPG_PRIVATE_KEY")
+            if private_key_b64:
+                private_key = base64.b64decode(private_key_b64).decode('utf-8')
+                import_result = subprocess.run([
+                    "gpg", "--import", "/dev/stdin"
+                ], input=private_key, text=True, capture_output=True)
+                
+                if import_result.returncode != 0:
+                    logger.warning(f"Key import warning: {import_result.stderr}")
+            
+            # Use flatpak build-update-repo for OSTree 2024.5 / Flatpak 1.14.6 compatibility
             cmd = [
-                "ostree", "summary", "--update", 
-                "--repo", str(self.repo_path),
+                "flatpak", "build-update-repo",
                 f"--gpg-sign={self.gpg_key_id}",
-                "--gpg-homedir", os.path.expanduser("~/.gnupg")
+                str(self.repo_path)
             ]
             
             logger.info(f"Running command: {' '.join(cmd)}")
