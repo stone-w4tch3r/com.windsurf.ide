@@ -51,6 +51,23 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ github.event.workflow_run.id }}
           
+      - name: Check and fix repository structure
+        run: |
+          echo "Repository contents after download:"
+          ls -la repo/
+          echo "Repository structure:"
+          find repo/ -type d | head -20
+          
+          # The artifact may be extracted with an extra directory level
+          if [ -d "repo/repo" ]; then
+            echo "Moving repo/repo/* to repo/"
+            mv repo/repo/* repo/
+            rmdir repo/repo
+          fi
+          
+          echo "Final repository structure:"
+          find repo/ -type d | head -10
+          
       - name: Sign repository and generate Pages content
         env:
           FLATPAK_GPG_PRIVATE_KEY: ${{ secrets.FLATPAK_GPG_PRIVATE_KEY }}
