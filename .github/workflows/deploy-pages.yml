@@ -41,7 +41,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r scripts/requirements.txt
           sudo apt-get update
-          sudo apt-get install -y ostree flatpak
+          sudo apt-get install -y ostree
           
       - name: Download repository artifact
         uses: actions/download-artifact@v4
@@ -96,15 +96,12 @@ jobs:
           ostree refs --repo=repo || echo "Failed to list refs"
           ostree summary --view --repo=repo || echo "Failed to view summary"
           
-      - name: Sign repository and generate Pages content
+      - name: Generate Pages content from signed repository
         env:
-          FLATPAK_GPG_PRIVATE_KEY: ${{ secrets.FLATPAK_GPG_PRIVATE_KEY }}
-          FLATPAK_GPG_PASSPHRASE: ${{ secrets.FLATPAK_GPG_PASSPHRASE }}
-          FLATPAK_GPG_KEY_ID: ${{ secrets.FLATPAK_GPG_KEY_ID }}
           FLATPAK_GPG_PUBLIC_KEY: ${{ secrets.FLATPAK_GPG_PUBLIC_KEY }}
           GITHUB_PAGES_URL: "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
         run: |
-          python3 scripts/pages_publisher.py
+          python3 scripts/pages_publisher_simple.py
           
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
