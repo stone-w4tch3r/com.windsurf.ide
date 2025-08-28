@@ -2,7 +2,7 @@
 Name=Windsurf - URL Handler
 Comment=AI-powered IDE that keeps you in flow.
 GenericName=AI Code Editor
-Exec=windsurf --open-url %U
+Exec=com.windsurf.ide --open-url %U
 Icon=com.windsurf.ide
 Type=Application
 NoDisplay=true

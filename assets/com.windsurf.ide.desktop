@@ -2,7 +2,7 @@
 Name=Windsurf
 Comment=AI-powered IDE that keeps you in flow.
 GenericName=AI Code Editor
-Exec=windsurf --reuse-window %F
+Exec=com.windsurf.ide --reuse-window %F
 Icon=com.windsurf.ide
 Type=Application
 StartupNotify=true
@@ -14,5 +14,5 @@ Keywords=windsurf;ai;code;editor;
 
 [Desktop Action new-empty-window]
 Name=New Empty Window
-Exec=windsurf --new-window %F
+Exec=com.windsurf.ide --new-window %F
 Icon=com.windsurf.ide
