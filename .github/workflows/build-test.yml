@@ -53,11 +53,43 @@ jobs:
       - name: Set up GPG for signing
         env:
           FLATPAK_GPG_PRIVATE_KEY: ${{ secrets.FLATPAK_GPG_PRIVATE_KEY }}
+          FLATPAK_GPG_PASSPHRASE: ${{ secrets.FLATPAK_GPG_PASSPHRASE }}
         run: |
-          # Import GPG key for signing
+          # Configure GPG for automated signing
+          mkdir -p ~/.gnupg
+          chmod 700 ~/.gnupg
+          
+          # Configure GPG for batch mode
+          cat > ~/.gnupg/gpg.conf << EOF
+          batch
+          yes
+          pinentry-mode loopback
+          passphrase $FLATPAK_GPG_PASSPHRASE
+          EOF
+          
+          # Configure GPG agent
+          cat > ~/.gnupg/gpg-agent.conf << EOF
+          allow-loopback-pinentry
+          default-cache-ttl 3600
+          max-cache-ttl 86400
+          EOF
+          
+          # Set permissions
+          chmod 600 ~/.gnupg/gpg.conf ~/.gnupg/gpg-agent.conf
+          
+          # Import GPG key for signing  
           echo "$FLATPAK_GPG_PRIVATE_KEY" | base64 --decode | gpg --batch --import
           
+          # Test that GPG signing works
+          echo "test" | gpg --batch --pinentry-mode loopback --passphrase "$FLATPAK_GPG_PASSPHRASE" --sign --armor -o /dev/null
+          
+          echo "GPG setup completed successfully"
+          
       - name: Build Flatpak with official action
+        env:
+          GPG_TTY: /dev/null
+          GNUPGHOME: /home/runner/.gnupg
+          FLATPAK_GPG_PASSPHRASE: ${{ secrets.FLATPAK_GPG_PASSPHRASE }}
         uses: flatpak/flatpak-github-actions/flatpak-builder@v6
         with:
           bundle: com.windsurf.ide.flatpak
