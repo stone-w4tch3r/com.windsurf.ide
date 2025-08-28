@@ -4,6 +4,12 @@
 
 🚨🚨 Warning: flatpak version of Windsurf is not straightforward to use. Stick to native packages if you are not confident in linux and/or value simplicity.
 
+## Install
+
+```bash
+flatpak install --from https://stone-w4tch3r.github.io/com.windsurf.ide/com.windsurf.ide.flatpakref
+```
+
 ## Usage
 
 Basic text editor/extensions functionality works, but for any real development you need to setup flatpak SDK extensions or tweak isolation.
