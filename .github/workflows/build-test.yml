@@ -56,10 +56,6 @@ jobs:
           bundle: com.windsurf.ide.flatpak
           manifest-path: com.windsurf.ide.yaml
           cache-key: flatpak-builder-${{ github.sha }}
-          gpg-sign: ${{ secrets.FLATPAK_GPG_KEY_ID }}
-        env:
-          FLATPAK_GPG_PRIVATE_KEY: ${{ secrets.FLATPAK_GPG_PRIVATE_KEY }}
-          FLATPAK_GPG_PASSPHRASE: ${{ secrets.FLATPAK_GPG_PASSPHRASE }}
           
       - name: Extract repository from build
         run: |

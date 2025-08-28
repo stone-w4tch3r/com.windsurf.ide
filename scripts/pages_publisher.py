@@ -1,69 +1,228 @@
 #!/usr/bin/env python3
-"""Generate GitHub Pages content for Flatpak repository (assuming pre-signed repository)."""
+"""Generate and sign GitHub Pages content for Flatpak repository."""
 
 import os
 import sys
 import shutil
 import subprocess
+import tempfile
 import base64
 import logging
 from pathlib import Path
+from typing import Optional
+import yaml
 
 logger = logging.getLogger(__name__)
 
 
-class SimpleFlatpakPagesPublisher:
-    """Handles GitHub Pages content generation for pre-signed Flatpak repository."""
+class FlatpakPagesPublisher:
+    """Handles GPG signing and GitHub Pages content generation for Flatpak repository."""
     
     def __init__(self, repo_path: str = "repo", output_path: str = "gh-pages-content"):
         """Initialize the publisher.
         
         Args:
-            repo_path: Path to the built and signed Flatpak repository
+            repo_path: Path to the built Flatpak repository
             output_path: Path where GitHub Pages content will be generated
         """
         self.repo_path = Path(repo_path)
         self.output_path = Path(output_path)
-        self.gpg_public_key = os.getenv("FLATPAK_GPG_PUBLIC_KEY", "")
+        self.gpg_key_id = None
+        self.gpg_public_key = None
+        self.gpg_setup_done = False
         
-    def validate_repository(self) -> bool:
-        """Validate that the repository exists and is properly structured.
+    def setup_gpg(self) -> bool:
+        """Set up GPG key from environment variables.
         
         Returns:
-            True if repository is valid, False otherwise
+            True if GPG setup successful, False otherwise
         """
+        try:
+            # Get GPG configuration from environment
+            private_key_b64 = os.getenv("FLATPAK_GPG_PRIVATE_KEY")
+            passphrase = os.getenv("FLATPAK_GPG_PASSPHRASE")
+            key_id = os.getenv("FLATPAK_GPG_KEY_ID")
+            public_key = os.getenv("FLATPAK_GPG_PUBLIC_KEY")
+            
+            if not all([private_key_b64, passphrase, key_id, public_key]):
+                logger.error("Missing required GPG environment variables")
+                return False
+                
+            self.gpg_key_id = key_id
+            self.gpg_public_key = public_key
+            
+            # Decode and import private key
+            private_key = base64.b64decode(private_key_b64).decode('utf-8')
+            
+            # Create GPG config for batch operations
+            gpg_conf = os.path.expanduser("~/.gnupg/gpg.conf")
+            os.makedirs(os.path.dirname(gpg_conf), exist_ok=True)
+            with open(gpg_conf, 'w') as f:
+                f.write("batch\n")
+                f.write("yes\n")
+                f.write("pinentry-mode loopback\n")
+                f.write(f"passphrase {passphrase}\n")
+            
+            # Set permissions
+            os.chmod(gpg_conf, 0o600)
+            os.chmod(os.path.dirname(gpg_conf), 0o700)
+            
+            # Import the private key
+            process = subprocess.run(
+                ["gpg", "--batch", "--import"],
+                input=private_key,
+                text=True,
+                capture_output=True
+            )
+            
+            if process.returncode != 0:
+                logger.error(f"Failed to import GPG key: {process.stderr}")
+                return False
+                
+            # Trust the key
+            trust_input = f"{key_id}:6:\n"
+            process = subprocess.run(
+                ["gpg", "--batch", "--import-ownertrust"],
+                input=trust_input,
+                text=True,
+                capture_output=True
+            )
+            
+            if process.returncode != 0:
+                logger.warning(f"Failed to set key trust: {process.stderr}")
+            
+            # Verify key is available
+            process = subprocess.run(
+                ["gpg", "--list-secret-keys", "--keyid-format", "LONG"],
+                capture_output=True,
+                text=True
+            )
+            
+            if key_id not in process.stdout:
+                logger.error(f"GPG key {key_id} not found after import")
+                return False
+                
+            logger.info(f"GPG key {key_id} successfully imported and configured")
+            self.gpg_setup_done = True
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to setup GPG: {e}")
+            return False
+    
+    def sign_repository(self) -> bool:
+        """Sign the Flatpak repository.
+        
+        Returns:
+            True if signing successful, False otherwise
+        """
+        if not self.gpg_setup_done:
+            logger.error("GPG not set up, cannot sign repository")
+            return False
+            
         if not self.repo_path.exists():
             logger.error(f"Repository path {self.repo_path} does not exist")
             return False
             
-        # Check if it's a valid OSTree repo
-        config_path = self.repo_path / "config"
-        if not config_path.exists():
-            logger.error(f"No OSTree config found at {config_path}")
-            return False
-            
-        # Check refs directory
-        refs_path = self.repo_path / "refs"
-        if not refs_path.exists():
-            logger.error(f"No refs directory found at {refs_path}")
-            return False
-            
-        # Check if we have refs
         try:
-            result = subprocess.run(
-                ["ostree", "refs", "--repo", str(self.repo_path)],
-                capture_output=True, text=True, check=True
-            )
-            refs = result.stdout.strip()
-            if not refs:
-                logger.error("No refs found in repository")
+            # Debug repository structure before signing
+            logger.info(f"Debugging repository structure at {self.repo_path}")
+            
+            # Check if it's a valid OSTree repo
+            config_path = self.repo_path / "config"
+            if not config_path.exists():
+                logger.error(f"No OSTree config found at {config_path}")
                 return False
-            logger.info(f"Available refs: {refs}")
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to list refs: {e.stderr}")
+                
+            # List repository contents
+            logger.info("Repository directory contents:")
+            for item in self.repo_path.iterdir():
+                logger.info(f"  {item.name}")
+                
+            # Check refs directory
+            refs_path = self.repo_path / "refs"
+            if not refs_path.exists():
+                logger.error(f"No refs directory found at {refs_path}")
+                return False
+                
+            # Ensure refs/remotes exists (required by OSTree)
+            refs_remotes_path = refs_path / "remotes"
+            if not refs_remotes_path.exists():
+                logger.info("Creating missing refs/remotes directory")
+                refs_remotes_path.mkdir(parents=True, exist_ok=True)
+                
+            # Try basic ostree commands first
+            logger.info("Testing basic OSTree commands...")
+            try:
+                result = subprocess.run(
+                    ["ostree", "refs", "--repo", str(self.repo_path)],
+                    capture_output=True, text=True, check=True
+                )
+                logger.info(f"Available refs: {result.stdout.strip()}")
+            except subprocess.CalledProcessError as e:
+                logger.error(f"Failed to list refs: {e.stderr}")
+                return False
+            
+            # Update and sign repository summary using flatpak build-update-repo
+            # This is compatible with Flatpak 1.14.6 (ostree summary --gpg-sign creates incompatible signatures)
+            passphrase = os.getenv("FLATPAK_GPG_PASSPHRASE")
+            
+            # Import key to system keyring for flatpak build-update-repo
+            private_key_b64 = os.getenv("FLATPAK_GPG_PRIVATE_KEY")
+            if private_key_b64:
+                private_key = base64.b64decode(private_key_b64).decode('utf-8')
+                import_result = subprocess.run([
+                    "gpg", "--import", "/dev/stdin"
+                ], input=private_key, text=True, capture_output=True)
+                
+                if import_result.returncode != 0:
+                    logger.warning(f"Key import warning: {import_result.stderr}")
+            
+            # Use flatpak build-update-repo for OSTree 2024.5 / Flatpak 1.14.6 compatibility
+            cmd = [
+                "flatpak", "build-update-repo",
+                f"--gpg-sign={self.gpg_key_id}",
+                str(self.repo_path)
+            ]
+            
+            logger.info(f"Running command: {' '.join(cmd)}")
+            
+            # Set up GPG environment for signing
+            env = {
+                **os.environ,
+                "GPG_TTY": "",
+                "GNUPGHOME": os.path.expanduser("~/.gnupg")
+            }
+            
+            # Use GPG agent with pinentry loopback for automated signing
+            process = subprocess.run(
+                cmd,
+                env=env,
+                capture_output=True,
+                text=True
+            )
+            
+            if process.returncode != 0:
+                logger.error(f"Failed to sign repository: {process.stderr}")
+                return False
+                
+            # Generate static deltas for better performance
+            try:
+                subprocess.run([
+                    "ostree", "static-delta", "generate", 
+                    "--repo", str(self.repo_path),
+                    "--min-fallback-size", "0"
+                ], check=True, capture_output=True)
+                logger.info("Generated static deltas")
+            except subprocess.CalledProcessError as e:
+                logger.warning(f"Failed to generate static deltas: {e}")
+            
+            logger.info("Repository successfully signed")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to sign repository: {e}")
             return False
-        
-        return True
     
     def get_app_info(self) -> dict:
         """Extract application information from the repository.
@@ -219,7 +378,7 @@ IsRuntime=false
             # Create output directory
             self.output_path.mkdir(parents=True, exist_ok=True)
             
-            # Copy the pre-signed repository
+            # Copy signed repository
             repo_dest = self.output_path / "repo"
             if repo_dest.exists():
                 shutil.rmtree(repo_dest)
@@ -231,10 +390,9 @@ IsRuntime=false
             flatpakref_path = self.output_path / f"{app_info['name']}.flatpakref"
             flatpakref_path.write_text(flatpakref_content)
             
-            # Save GPG public key if available
-            if self.gpg_public_key:
-                gpg_key_path = self.output_path / "windsurf-gpg-key.asc"
-                gpg_key_path.write_text(self.gpg_public_key)
+            # Save GPG public key
+            gpg_key_path = self.output_path / "windsurf-gpg-key.asc"
+            gpg_key_path.write_text(self.gpg_public_key)
             
             # Generate index.html
             html_content = self.generate_index_html(base_url)
@@ -245,6 +403,10 @@ IsRuntime=false
             nojekyll_path = self.output_path / ".nojekyll"
             nojekyll_path.touch()
             
+            # Create CNAME file if custom domain is needed (commented out)
+            # cname_path = self.output_path / "CNAME"
+            # cname_path.write_text("your-domain.com")
+            
             logger.info(f"GitHub Pages content generated in {self.output_path}")
             return True
             
@@ -253,7 +415,7 @@ IsRuntime=false
             return False
     
     def publish(self, base_url: str) -> bool:
-        """Complete publishing workflow: validate repository and generate Pages content.
+        """Complete publishing workflow: sign repository and generate Pages content.
         
         Args:
             base_url: Base URL for the GitHub Pages site
@@ -263,10 +425,14 @@ IsRuntime=false
         """
         logger.info("Starting Flatpak repository publishing...")
         
-        # Validate repository
-        if not self.validate_repository():
+        # Setup GPG
+        if not self.setup_gpg():
             return False
-        
+            
+        # Sign repository
+        if not self.sign_repository():
+            return False
+            
         # Generate Pages content
         if not self.generate_pages_content(base_url):
             return False
@@ -283,7 +449,7 @@ def main():
     base_url = os.getenv("GITHUB_PAGES_URL", "https://stone-w4tch3r.github.io/com.windsurf.ide")
     
     # Initialize publisher
-    publisher = SimpleFlatpakPagesPublisher()
+    publisher = FlatpakPagesPublisher()
     
     # Run publishing workflow
     success = publisher.publish(base_url)
