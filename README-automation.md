@@ -51,13 +51,13 @@ The automation follows a **static files + PR-based updates** approach:
 ### 1. Windsurf Version Updates (Auto-merge)
 
 **Trigger**: Every 6 hours / Manual / Webhook
-**Action**: 
+**Action**:
 - Ensures repository auto-merge is enabled automatically
 - Checks Windsurf API for new versions
 - Updates binary URL, SHA256, and size in manifest using surgical text replacement
 - Preserves original YAML formatting (only 3 lines changed)
-- Creates PR with auto-merge enabled via GitHub GraphQL API
-- Auto-merges on successful build + tests
+- Creates PR with auto-merge enabled via GitHub's native auto-merge API
+- Auto-merges when required status checks (`validate` and `build`) pass
 
 **Workflow**: `windsurf-update.yml`
 
@@ -74,13 +74,13 @@ The automation follows a **static files + PR-based updates** approach:
 
 ### 3. Build & Test (All PRs)
 
-**Trigger**: All PRs affecting Flatpak files
+**Trigger**: All PRs affecting Flatpak files (`com.windsurf.ide.yaml`, `com.windsurf.ide.metainfo.xml`, assets, scripts)
 **Action**:
-- Validates manifest syntax and structure
-- Builds Flatpak in container environment  
+- Validates manifest syntax and structure (`validate` job)
+- Builds Flatpak in container environment (`build` job)
 - Tests basic functionality and installation
-- Auto-merges Windsurf update PRs on success
-- Preserves KDE Wayland desktop integration fixes
+- Reports status to GitHub's status check API
+- Enables GitHub's native auto-merge for qualified PRs
 
 **Workflow**: `build-test.yml`
 
@@ -98,7 +98,23 @@ The automation follows a **static files + PR-based updates** approach:
 
 ## 🛠️ Setup
 
-### 1. Environment Variables
+### 1. Prerequisites
+
+For auto-merge to work properly, you **must** configure:
+
+#### Required Repository Settings:
+1. **Enable Auto-merge**: Settings → General → Pull Requests → ☑️ "Allow auto-merge"
+2. **Configure Branch Protection**: Settings → Branches → Add rule for `master`:
+   - ☑️ "Require status checks to pass before merging"
+   - ☑️ "Require branches to be up to date before merging"
+   - Add required status checks: `validate` and `build`
+
+#### Important Notes:
+- Status checks (`validate`, `build`) must run at least once before they appear in the branch protection settings
+- You can search for these job names when configuring required status checks
+- Without branch protection, GitHub's native auto-merge will not work
+
+### 2. Environment Variables
 
 Set these in your GitHub repository settings:
 
@@ -110,18 +126,59 @@ GITHUB_OWNER    # e.g. your-username or org name
 GITHUB_REPO     # repository name
 ```
 
-### 2. Repository Settings
+### 3. Additional Repository Settings
 
-Enable the following in your repository:
+Ensure these are also enabled:
 - Actions (for workflows)
-- **Auto-merge is enabled automatically** by the automation scripts
-- No branch protection rules required (auto-merge works without them)
+- GitHub Pages (for publishing signed Flatpak repository)
 
 #### Secrets
 - `FLATPAK_GPG_PRIVATE_KEY` and `FLATPAK_GPG_PASSPHRASE` (used for signing in build on push and during Pages publish)
 - `FLATPAK_GPG_PUBLIC_KEY` (used during Pages publish)
 
-### 3. Local Development
+### 4. Setting Up Auto-merge (Step-by-step)
+
+If you're setting up a new repository, follow these steps **in order**:
+
+1. **Enable repository auto-merge**:
+   ```bash
+   # This can be done via API (requires admin permissions):
+   gh api repos/OWNER/REPO --method PATCH --field allow_auto_merge=true
+
+   # Or manually: Settings → General → Pull Requests → ☑️ "Allow auto-merge"
+   ```
+
+2. **Run workflows at least once** to register status checks:
+   ```bash
+   # Trigger a build to register the validate/build jobs
+   gh workflow run build-test.yml
+   ```
+
+3. **Configure branch protection** (after status checks are registered):
+   ```bash
+   # Via API:
+   gh api repos/OWNER/REPO/branches/master/protection --method PUT --input - <<'EOF'
+   {
+     "required_status_checks": {
+       "strict": true,
+       "contexts": ["validate", "build"]
+     },
+     "enforce_admins": false,
+     "required_pull_request_reviews": null,
+     "restrictions": null
+   }
+   EOF
+
+   # Or manually: Settings → Branches → Add rule → Configure as described above
+   ```
+
+4. **Test the setup**:
+   ```bash
+   # Trigger a Windsurf update to test auto-merge
+   gh workflow run windsurf-update.yml
+   ```
+
+### 5. Local Development
 
 ```bash
 # Install dependencies
@@ -231,11 +288,16 @@ Monitor automation health via:
 ### Common Issues
 
 1. **Build failures**: Check container environment and dependency versions
-2. **API failures**: Verify network connectivity and API endpoints  
-3. **Auto-merge not working**: Repository auto-merge is enabled automatically by scripts
-4. **Version extraction fails**: URL format may have changed
-5. **Formatting corruption**: Use surgical text replacement, not YAML dumping
-6. **Pages publish issues**: Verify Pages is enabled, and GPG secrets are correctly configured
+2. **API failures**: Verify network connectivity and API endpoints
+3. **Auto-merge not working**:
+   - Verify repository auto-merge is enabled (Settings → General → Allow auto-merge)
+   - Ensure branch protection rules are configured with required status checks
+   - Check that `validate` and `build` jobs completed successfully
+   - Confirm the PR has auto-merge enabled (should show "Will auto-merge" label)
+4. **Status checks not appearing**: Jobs must run at least once before appearing in branch protection settings
+5. **Version extraction fails**: URL format may have changed
+6. **Formatting corruption**: Use surgical text replacement, not YAML dumping
+7. **Pages publish issues**: Verify Pages is enabled, and GPG secrets are correctly configured
 
 ### Debug Mode
 
