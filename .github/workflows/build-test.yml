@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'com.windsurf.ide.yaml'
+      - 'com.windsurf.ide.metainfo.xml'
       - 'assets/**'
       - 'windsurf.sh'
       - '*.conf'
