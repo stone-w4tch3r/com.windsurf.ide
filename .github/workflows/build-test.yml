@@ -117,11 +117,10 @@ jobs:
       github.event_name == 'pull_request' &&
       contains(github.event.pull_request.labels.*.name, 'windsurf-update') &&
       contains(github.event.pull_request.labels.*.name, 'automated')
-    
+
     steps:
-      - name: Auto-merge PR
-        uses: pascalgn/merge-action@v0.15.6
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          merge_method: squash
-          merge_commit_message: pull-request-title-and-description
+      - name: Enable auto-merge for PR
+        run: |
+          gh pr merge ${{ github.event.pull_request.number }} --squash --auto
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
