@@ -113,9 +113,6 @@ class WindsurfUpdater:
                 labels=["windsurf-update", "automated"]
             )
             
-            # Enable auto-merge
-            self.github.enable_auto_merge(pr["number"])
-            
             logger.info(f"Created PR for Windsurf update: {pr['html_url']}")
             return pr["html_url"]
             
@@ -278,7 +275,6 @@ class WindsurfUpdater:
 
 ### Automation
 This PR was created automatically by the Windsurf update bot.
-- ✅ Auto-merge enabled on build success
 - 🏗️ Flatpak build will be tested automatically
 - 🔄 Will merge automatically if all checks pass
 
