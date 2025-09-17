@@ -133,6 +133,10 @@ Ensure these are also enabled:
 - GitHub Pages (for publishing signed Flatpak repository)
 
 #### Secrets
+- **`PAT_TOKEN`** (Personal Access Token) - **REQUIRED** for PR workflows to trigger
+  - Must have `repo` scope (full control of private repositories)
+  - Optional: `workflow` scope (if workflows need to be modified)
+  - **Critical**: Without this, PRs created by automation won't trigger build workflows
 - `FLATPAK_GPG_PRIVATE_KEY` and `FLATPAK_GPG_PASSPHRASE` (used for signing in build on push and during Pages publish)
 - `FLATPAK_GPG_PUBLIC_KEY` (used during Pages publish)
 
@@ -140,7 +144,17 @@ Ensure these are also enabled:
 
 If you're setting up a new repository, follow these steps **in order**:
 
-1. **Enable repository auto-merge**:
+1. **Create Personal Access Token**:
+   - Go to GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)
+   - Generate token with `repo` scope (and optionally `workflow` scope)
+   - Copy the token value
+
+2. **Add PAT as repository secret**:
+   - Go to repository Settings → Secrets and variables → Actions
+   - Add new secret: Name=`PAT_TOKEN`, Value=[your token]
+   - **Critical**: Without this, PRs won't trigger build workflows due to GitHub's GITHUB_TOKEN limitation
+
+3. **Enable repository auto-merge**:
    ```bash
    # This can be done via API (requires admin permissions):
    gh api repos/OWNER/REPO --method PATCH --field allow_auto_merge=true
@@ -148,13 +162,13 @@ If you're setting up a new repository, follow these steps **in order**:
    # Or manually: Settings → General → Pull Requests → ☑️ "Allow auto-merge"
    ```
 
-2. **Run workflows at least once** to register status checks:
+4. **Run workflows at least once** to register status checks:
    ```bash
    # Trigger a build to register the validate/build jobs
    gh workflow run build-test.yml
    ```
 
-3. **Configure branch protection** (after status checks are registered):
+5. **Configure branch protection** (after status checks are registered):
    ```bash
    # Via API:
    gh api repos/OWNER/REPO/branches/master/protection --method PUT --input - <<'EOF'
@@ -172,7 +186,7 @@ If you're setting up a new repository, follow these steps **in order**:
    # Or manually: Settings → Branches → Add rule → Configure as described above
    ```
 
-4. **Test the setup**:
+6. **Test the setup**:
    ```bash
    # Trigger a Windsurf update to test auto-merge
    gh workflow run windsurf-update.yml
@@ -295,9 +309,13 @@ Monitor automation health via:
    - Check that `validate` and `build` jobs completed successfully
    - Confirm the PR has auto-merge enabled (should show "Will auto-merge" label)
 4. **Status checks not appearing**: Jobs must run at least once before appearing in branch protection settings
-5. **Version extraction fails**: URL format may have changed
-6. **Formatting corruption**: Use surgical text replacement, not YAML dumping
-7. **Pages publish issues**: Verify Pages is enabled, and GPG secrets are correctly configured
+5. **PRs created by automation don't trigger workflows**:
+   - **Root cause**: GitHub's GITHUB_TOKEN limitation - bot-created PRs don't trigger pull_request workflows
+   - **Solution**: Must use Personal Access Token (PAT_TOKEN) instead of GITHUB_TOKEN
+   - **Symptoms**: PR shows "auto-merge enabled" but no status checks appear
+6. **Version extraction fails**: URL format may have changed
+7. **Formatting corruption**: Use surgical text replacement, not YAML dumping
+8. **Pages publish issues**: Verify Pages is enabled, and GPG secrets are correctly configured
 
 ### Debug Mode
 
