@@ -125,6 +125,7 @@ Title={app_info['title']}
 Name={app_info['name']}
 Url={base_url}/repo/
 RuntimeRepo=https://flathub.org/repo/flathub.flatpakrepo
+SuggestRemoteName=windsurf-origin
 GPGKey={public_key_b64}
 IsRuntime=false
 """
