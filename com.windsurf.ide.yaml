@@ -5,29 +5,32 @@ sdk: org.freedesktop.Sdk
 base: org.electronjs.Electron2.BaseApp
 base-version: '24.08'
 command: com.windsurf.ide
-tags: [proprietary]
+tags:
+- proprietary
 separate-locales: false
 finish-args:
-  - --share=ipc
-  - --socket=wayland
-  - --socket=fallback-x11
-  - --socket=pulseaudio
-  - --socket=ssh-auth
-  - --share=network
-  - --device=all
-  - --filesystem=host
-  - --persist=.windsurf-ide
-  - --allow=devel
-  - --talk-name=org.freedesktop.secrets
-  - --talk-name=org.kde.kwalletd5
-  - --talk-name=org.freedesktop.Flatpak
-  - --env=XCURSOR_PATH=/run/host/user-share/icons:/run/host/share/icons
-  - --filesystem=xdg-run/gnupg:ro
-  - --filesystem=xdg-config/kdeglobals:ro
-  - --talk-name=com.canonical.AppMenu.Registrar
-  - --talk-name=com.canonical.AppMenu.Registrar.*
-  - --system-talk-name=org.freedesktop.login1
-  - --talk-name=org.freedesktop.Notifications
+- --allow=devel
+- --device=all
+- --env=LD_LIBRARY_PATH=/app/lib
+- --env=NPM_CONFIG_GLOBALCONFIG=/app/etc/npmrc
+- --env=XCURSOR_PATH=/run/host/user-share/icons:/run/host/share/icons
+- --filesystem=host
+- --filesystem=xdg-config/kdeglobals:ro
+- --filesystem=xdg-run/gnupg:ro
+- --persist=.windsurf-ide
+- --require-version=0.10.3
+- --share=ipc
+- --share=network
+- --socket=fallback-x11
+- --socket=pulseaudio
+- --socket=ssh-auth
+- --socket=wayland
+- --system-talk-name=org.freedesktop.login1
+- --talk-name=com.canonical.AppMenu.Registrar
+- --talk-name=org.freedesktop.Flatpak
+- --talk-name=org.freedesktop.Notifications
+- --talk-name=org.freedesktop.secrets
+- --talk-name=org.kde.kwalletd5
 add-extensions:
   com.windsurf.ide.tool:
     directory: tools
@@ -36,152 +39,142 @@ add-extensions:
     add-ld-path: lib
     no-autodownload: true
 cleanup:
+- /include
+- /lib/pkgconfig
+- /share/gtk-doc
+- '*.la'
+modules:
+- shared-modules/libusb/libusb.json
+- name: libsecret
+  buildsystem: meson
+  config-opts:
+  - -Dmanpage=false
+  - -Dcrypto=disabled
+  - -Dvapi=false
+  - -Dgtk_doc=false
+  - -Dintrospection=false
+  - -Dbash_completion=disabled
+  cleanup:
+  - /bin
   - /include
   - /lib/pkgconfig
-  - /share/gtk-doc
-  - '*.la'
-modules:
-  - shared-modules/libusb/libusb.json
+  - /share/man
+  sources:
+  - type: archive
+    url: https://download.gnome.org/sources/libsecret/0.21/libsecret-0.21.7.tar.xz
+    sha256: 6b452e4750590a2b5617adc40026f28d2f4903de15f1250e1d1c40bfd68ed55e
+    x-checker-data:
+      type: gnome
+      name: libsecret
+      stable-only: true
+- name: windsurf
+  buildsystem: simple
+  build-commands:
+  - install -Dm644 windsurf_64.png /app/share/icons/hicolor/64x64/apps/$FLATPAK_ID.png
+  - install -Dm644 windsurf_128.png /app/share/icons/hicolor/128x128/apps/$FLATPAK_ID.png
+  - install -Dm644 windsurf_256.png /app/share/icons/hicolor/256x256/apps/$FLATPAK_ID.png
+  - install -Dm644 windsurf_512.png /app/share/icons/hicolor/512x512/apps/$FLATPAK_ID.png
+  - install -Dm644 $FLATPAK_ID.metainfo.xml -t /app/share/metainfo
+  - install -Dm644 $FLATPAK_ID.desktop -t /app/share/applications
+  - install -Dm644 $FLATPAK_ID-url-handler.desktop -t /app/share/applications
+  - install -Dm644 $FLATPAK_ID-workspace.xml -t /app/share/mime/packages
+  - install -D apply_extra -t /app/bin
+  - cp /usr/bin/ar /app/bin
+  - ARCH_TRIPLE=$(gcc --print-multiarch) && cp /usr/lib/${ARCH_TRIPLE}/libbfd-*.so /app/lib
+  - ARCH_TRIPLE=$(gcc --print-multiarch) && ln -s /usr/lib/${ARCH_TRIPLE}/libtinfo.so /app/lib/libtinfo.so.5
+  - mkdir /app/tools
+  sources:
+  - type: script
+    dest-filename: apply_extra
+    commands:
+    - tar xzf windsurf.tar.gz
+    - mv Windsurf windsurf
+    - rm windsurf.tar.gz
+    - '# Apply KDE desktop name fix
 
-  # fix libsecret under flatpak
-  # https://github.com/flathub/org.signal.Signal/pull/756/commits/2caf105b18f906e7707f67b3cf7384a21f461564
-  - name: libsecret
-    buildsystem: meson
-    config-opts:
-      - -Dmanpage=false
-      - -Dcrypto=disabled
-      - -Dvapi=false
-      - -Dgtk_doc=false
-      - -Dintrospection=false
-      - -Dbash_completion=disabled
-    cleanup:
-      - /bin
-      - /include
-      - /lib/pkgconfig
-      - /share/man
-    sources:
-      - type: archive
-        url: https://download.gnome.org/sources/libsecret/0.21/libsecret-0.21.7.tar.xz
-        sha256: 6b452e4750590a2b5617adc40026f28d2f4903de15f1250e1d1c40bfd68ed55e
-        x-checker-data:
-          type: gnome
-          name: libsecret
-          stable-only: true
+      cd windsurf/resources/app
 
-  - name: windsurf
-    buildsystem: simple
-    build-commands:
-      - install -Dm644 windsurf_64.png /app/share/icons/hicolor/64x64/apps/$FLATPAK_ID.png
-      - install -Dm644 windsurf_128.png /app/share/icons/hicolor/128x128/apps/$FLATPAK_ID.png
-      - install -Dm644 windsurf_256.png /app/share/icons/hicolor/256x256/apps/$FLATPAK_ID.png
-      - install -Dm644 windsurf_512.png /app/share/icons/hicolor/512x512/apps/$FLATPAK_ID.png
-      - install -Dm644 $FLATPAK_ID.metainfo.xml -t /app/share/metainfo
-      - install -Dm644 $FLATPAK_ID.desktop -t /app/share/applications
-      - install -Dm644 $FLATPAK_ID-url-handler.desktop -t /app/share/applications
-      - install -Dm644 $FLATPAK_ID-workspace.xml -t /app/share/mime/packages
-      - install -D apply_extra -t /app/bin
-      - cp /usr/bin/ar /app/bin
-      - ARCH_TRIPLE=$(gcc --print-multiarch) && cp /usr/lib/${ARCH_TRIPLE}/libbfd-*.so /app/lib
-      - ARCH_TRIPLE=$(gcc --print-multiarch) && ln -s /usr/lib/${ARCH_TRIPLE}/libtinfo.so /app/lib/libtinfo.so.5
-      - mkdir /app/tools
-    sources:
-      - type: script
-        dest-filename: apply_extra
-        commands:
-          - tar xzf windsurf.tar.gz
-          - mv Windsurf windsurf
-          - rm windsurf.tar.gz
-          - |
-            # Apply KDE desktop name fix
-            cd windsurf/resources/app
-            sed -i 's/"desktopName": "windsurf.desktop"/"desktopName": "com.windsurf.ide.desktop"/' package.json
-      - type: file
-        path: com.windsurf.ide.metainfo.xml
-      - type: file
-        path: assets/com.windsurf.ide.desktop
-      - type: file
-        path: assets/com.windsurf.ide-url-handler.desktop
-      - type: file
-        path: assets/com.windsurf.ide-workspace.xml
-      - type: file
-        path: assets/icons/windsurf_64.png
-      - type: file
-        path: assets/icons/windsurf_128.png
-      - type: file
-        path: assets/icons/windsurf_256.png
-      - type: file
-        path: assets/icons/windsurf_512.png
-      - type: extra-data
-        filename: windsurf.tar.gz
-        only-arches: [x86_64]
-        url: https://windsurf-stable.codeiumdata.com/linux-x64/stable/9a3d24f8ef44e756d945e890becee97bc90c6482/Windsurf-linux-x64-1.12.6.tar.gz
-        sha256: fed4da2979aac3978cca4ed493af5fa15489417f03072fd8c283855b223861be
-        size: 195180926
-        x-checker-data:
-          type: json
-          url: https://windsurf-stable.codeium.com/api/update/linux-x64/stable/latest
-          version-query: .windsurfVersion
-          timestamp-query: null
-          url-query: .url
-          is-main-source: true
+      sed -i ''s/"desktopName": "windsurf.desktop"/"desktopName": "com.windsurf.ide.desktop"/'' package.json
 
-  - name: host-spawn
-    buildsystem: simple
-    build-commands:
-      - install -Dm755 host-spawn /app/bin/host-spawn
-    sources:
-      - type: file
-        url: https://github.com/1player/host-spawn/releases/download/v1.6.2/host-spawn-x86_64
-        sha256: 077bc09a087292447ba17cfe2156a93f71bf56c4c6be8e38d3abe65c1240f34c
-        dest-filename: host-spawn
-        only-arches: [x86_64]
-        x-checker-data:
-          type: json
-          url: https://api.github.com/repos/1player/host-spawn/releases/latest
-          tag-query: .tag_name
-          version-query: .tag_name
-          timestamp-query: .published_at
-          url-query: .assets[] | select(.name|test(".+x86_64$")).browser_download_url
-      - type: file
-        url: https://github.com/1player/host-spawn/releases/download/v1.6.2/host-spawn-aarch64
-        sha256: 8b30215b0b6b66c8c34a3e22d372dd39020295cd0904608bc2c5f5ecff829e5f
-        dest-filename: host-spawn
-        only-arches: [aarch64]
-        x-checker-data:
-          type: json
-          url: https://api.github.com/repos/1player/host-spawn/releases/latest
-          tag-query: .tag_name
-          version-query: .tag_name
-          timestamp-query: .published_at
-          url-query: .assets[] | select(.name|test(".+aarch64$")).browser_download_url
-
-  - name: wrapper-flatpak-wrapper
-    buildsystem: meson
-    config-opts:
-      - -Deditor_binary=/app/extra/windsurf/windsurf
-      - >-
-        -Deditor_args=[
-        '/app/extra/windsurf/resources/app/out/cli.js',
-        '--extensions-dir', '$XDG_DATA_HOME/windsurf/extensions'
-        ]
-      - -Dprogram_name=com.windsurf.ide
-      - -Deditor_title=Windsurf
-      - -Dzypak=enabled
-      - -Dzypak_args=[ 'host', '-' ]
-      - >-
-        -Denvs=[
-        "ELECTRON_RUN_AS_NODE=1"
-        ]
-      - >-
-        -Denvs_inner=[
-        "ZYPAK_SPAWN_LATEST_ON_REEXEC=0",
-        ]
-      - -Dfirst_run_template=README.md
-      - -Dflagfile_prefix=flatpak-windsurf
-    sources:
-      - type: git
-        url: https://github.com/flathub-infra/ide-flatpak-wrapper.git
-        commit: f8f6485adfe7df52db5f241e3a99f5c7540aff9f
-      - type: file
-        path: README.md
-
+      '
+  - type: file
+    path: com.windsurf.ide.metainfo.xml
+  - type: file
+    path: assets/com.windsurf.ide.desktop
+  - type: file
+    path: assets/com.windsurf.ide-url-handler.desktop
+  - type: file
+    path: assets/com.windsurf.ide-workspace.xml
+  - type: file
+    path: assets/icons/windsurf_64.png
+  - type: file
+    path: assets/icons/windsurf_128.png
+  - type: file
+    path: assets/icons/windsurf_256.png
+  - type: file
+    path: assets/icons/windsurf_512.png
+  - type: extra-data
+    filename: windsurf.tar.gz
+    only-arches:
+    - x86_64
+    url: https://windsurf-stable.codeiumdata.com/linux-x64/stable/9a3d24f8ef44e756d945e890becee97bc90c6482/Windsurf-linux-x64-1.12.6.tar.gz
+    sha256: fed4da2979aac3978cca4ed493af5fa15489417f03072fd8c283855b223861be
+    size: 195180926
+    x-checker-data:
+      type: json
+      url: https://windsurf-stable.codeium.com/api/update/linux-x64/stable/latest
+      version-query: .windsurfVersion
+      timestamp-query: null
+      url-query: .url
+      is-main-source: true
+- name: host-spawn
+  buildsystem: simple
+  build-commands:
+  - install -Dm755 host-spawn /app/bin/host-spawn
+  sources:
+  - type: file
+    url: https://github.com/1player/host-spawn/releases/download/v1.6.2/host-spawn-x86_64
+    sha256: 077bc09a087292447ba17cfe2156a93f71bf56c4c6be8e38d3abe65c1240f34c
+    dest-filename: host-spawn
+    only-arches:
+    - x86_64
+    x-checker-data:
+      type: json
+      url: https://api.github.com/repos/1player/host-spawn/releases/latest
+      tag-query: .tag_name
+      version-query: .tag_name
+      timestamp-query: .published_at
+      url-query: .assets[] | select(.name|test(".+x86_64$")).browser_download_url
+  - type: file
+    url: https://github.com/1player/host-spawn/releases/download/v1.6.2/host-spawn-aarch64
+    sha256: 8b30215b0b6b66c8c34a3e22d372dd39020295cd0904608bc2c5f5ecff829e5f
+    dest-filename: host-spawn
+    only-arches:
+    - aarch64
+    x-checker-data:
+      type: json
+      url: https://api.github.com/repos/1player/host-spawn/releases/latest
+      tag-query: .tag_name
+      version-query: .tag_name
+      timestamp-query: .published_at
+      url-query: .assets[] | select(.name|test(".+aarch64$")).browser_download_url
+- name: wrapper-flatpak-wrapper
+  buildsystem: meson
+  config-opts:
+  - -Deditor_binary=/app/extra/windsurf/windsurf
+  - -Deditor_args=[ '/app/extra/windsurf/resources/app/out/cli.js', '--extensions-dir', '$XDG_DATA_HOME/windsurf/extensions'
+    ]
+  - -Dprogram_name=com.windsurf.ide
+  - -Deditor_title=Windsurf
+  - -Dzypak=enabled
+  - -Dzypak_args=[ 'host', '-' ]
+  - -Denvs=[ "ELECTRON_RUN_AS_NODE=1" ]
+  - -Denvs_inner=[ "ZYPAK_SPAWN_LATEST_ON_REEXEC=0", ]
+  - -Dfirst_run_template=README.md
+  - -Dflagfile_prefix=flatpak-windsurf
+  sources:
+  - type: git
+    url: https://github.com/flathub-infra/ide-flatpak-wrapper.git
+    commit: f8f6485adfe7df52db5f241e3a99f5c7540aff9f
+  - type: file
+    path: README.md
