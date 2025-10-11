@@ -1,52 +1,36 @@
-# VSCodium Flatpak manifest tracking file
-# This file stores the last known VSCodium manifest for comparison
-# Updated automatically by automation scripts
-
-version: "1.102.35058"
-last_updated: "2024-08-22"
-source_url: "https://github.com/flathub/com.vscodium.codium"
-
-# Key fields we track for changes
-runtime_version: "24.08"  
-base_version: "24.08"
-
-# Modules we share with VSCodium
+version: 1.105.06808
+last_updated: '2025-10-11'
+source_url: https://github.com/flathub/com.vscodium.codium
+runtime_version: '24.08'
+base_version: '24.08'
 shared_modules:
   libsecret:
-    url: "https://download.gnome.org/sources/libsecret/0.21/libsecret-0.21.7.tar.xz"
-    sha256: "6b452e4750590a2b5617adc40026f28d2f4903de15f1250e1d1c40bfd68ed55e"
-  
+    url: https://download.gnome.org/sources/libsecret/0.21/libsecret-0.21.7.tar.xz
+    sha256: 6b452e4750590a2b5617adc40026f28d2f4903de15f1250e1d1c40bfd68ed55e
   host-spawn:
-    version: "v1.6.2"
-    x86_64_sha256: "077bc09a087292447ba17cfe2156a93f71bf56c4c6be8e38d3abe65c1240f34c"
-    aarch64_sha256: "8b30215b0b6b66c8c34a3e22d372dd39020295cd0904608bc2c5f5ecff829e5f"
-  
+    version: v1.6.2
+    x86_64_sha256: 077bc09a087292447ba17cfe2156a93f71bf56c4c6be8e38d3abe65c1240f34c
+    aarch64_sha256: 8b30215b0b6b66c8c34a3e22d372dd39020295cd0904608bc2c5f5ecff829e5f
   wrapper-flatpak-wrapper:
-    commit: "c26e15940a02b40603ea57b0ac76b4944bee5464"
-
-# Finish args we should consider
+    commit: f8f6485adfe7df52db5f241e3a99f5c7540aff9f
 finish_args:
-  - "--share=ipc"
-  - "--socket=wayland" 
-  - "--socket=fallback-x11"
-  - "--socket=pulseaudio"
-  - "--socket=ssh-auth"
-  - "--share=network"
-  - "--device=all"
-  - "--filesystem=host"
-  - "--persist=.vscode-oss"  # VSCodium specific - we use different path
-  - "--allow=devel"
-  - "--talk-name=org.freedesktop.secrets"
-  - "--talk-name=org.kde.kwalletd5"
-  - "--talk-name=org.freedesktop.Flatpak"
-  - "--env=XCURSOR_PATH=/run/host/user-share/icons:/run/host/share/icons"
-  - "--filesystem=xdg-run/gnupg:ro"
-  - "--filesystem=xdg-config/kdeglobals:ro"
-  - "--talk-name=com.canonical.AppMenu.Registrar"
-  - "--system-talk-name=org.freedesktop.login1"
-
-# Extensions we should consider
+- --share=ipc
+- --socket=wayland
+- --socket=fallback-x11
+- --socket=pulseaudio
+- --socket=ssh-auth
+- --share=network
+- --device=all
+- --filesystem=host
+- --persist=.vscode-oss
+- --allow=devel
+- --talk-name=org.freedesktop.secrets
+- --talk-name=org.kde.kwalletd5
+- --talk-name=org.freedesktop.Flatpak
+- --env=XCURSOR_PATH=/run/host/user-share/icons:/run/host/share/icons
+- --filesystem=xdg-run/gnupg:ro
+- --filesystem=xdg-config/kdeglobals:ro
+- --talk-name=com.canonical.AppMenu.Registrar
+- --system-talk-name=org.freedesktop.login1
 extensions:
-  tool_extension: "com.visualstudio.code.tool"  # We use com.windsurf.ide.tool
-
-# Note: We now use the same wrapper-flatpak-wrapper as VSCodium
+  tool_extension: com.visualstudio.code.tool
