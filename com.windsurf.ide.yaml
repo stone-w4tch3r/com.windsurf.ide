@@ -114,9 +114,9 @@ modules:
       - type: extra-data
         filename: windsurf.tar.gz
         only-arches: [x86_64]
-        url: https://windsurf-stable.codeiumdata.com/linux-x64/stable/9a3d24f8ef44e756d945e890becee97bc90c6482/Windsurf-linux-x64-1.12.6.tar.gz
-        sha256: fed4da2979aac3978cca4ed493af5fa15489417f03072fd8c283855b223861be
-        size: 195180926
+        url: https://windsurf-stable.codeiumdata.com/linux-x64/stable/8b6a7c68fb76075b29a085605ef19c1d660a258e/Windsurf-linux-x64-1.12.43.tar.gz
+        sha256: c7f3c83561e40c63b36eff39bcfe8591250e735da3ecc2b29c277b8e04856825
+        size: 234305891
         x-checker-data:
           type: json
           url: https://windsurf-stable.codeium.com/api/update/linux-x64/stable/latest
