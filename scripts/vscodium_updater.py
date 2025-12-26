@@ -345,6 +345,15 @@ class VSCodiumUpdater:
                     vscodium_modules_by_name[name] = module
 
         # Build new module list using Windsurf's order as base
+        # Import CommentedSeq at module level for proper YAML serialization
+        from ruamel.yaml import YAML
+        yaml_for_new = YAML()
+        yaml_for_new.preserve_quotes = True
+        yaml_for_new.preserve_order = True
+        yaml_for_new.default_flow_style = False
+        yaml_for_new.indent(mapping=2, sequence=2, offset=2)
+        yaml_for_new.width = 100
+
         new_modules = CommentedSeq()
 
         # First, add all Windsurf modules (preserves order)
@@ -372,19 +381,19 @@ class VSCodiumUpdater:
 
                 # Shared modules: update from VSCodium if available
                 if name in vscodium_modules_by_name:
-                    # Convert to CommentedMap for proper YAML serialization
                     vscodium_module = vscodium_modules_by_name[name]
-                    if isinstance(vscodium_module, dict) and not isinstance(vscodium_module, CommentedMap):
-                        # Use ruamel.yaml to properly load the module as CommentedMap
-                        from ruamel.yaml import YAML
-                        yaml = YAML()
-                        stream = io.StringIO()
-                        yaml.dump(vscodium_module, stream)
-                        stream.seek(0)
-                        commented_module = yaml.load(stream)
-                        new_modules.append(commented_module)
+                    # Update existing Windsurf CommentedMap in-place to preserve structure
+                    if isinstance(module, CommentedMap):
+                        # Clear existing keys and update with VSCodium values
+                        module.clear()
+                        module.update(vscodium_module)
+                        new_modules.append(module)
                     else:
-                        new_modules.append(copy.deepcopy(vscodium_module))
+                        # Fallback: use YAML dump/load for conversion
+                        stream = io.StringIO()
+                        yaml_for_new.dump(vscodium_module, stream)
+                        stream.seek(0)
+                        new_modules.append(yaml_for_new.load(stream))
                     logger.debug(f"Updating shared module from VSCodium: {name}")
                 else:
                     # Module exists in Windsurf but not in VSCodium, keep as-is
@@ -394,18 +403,11 @@ class VSCodiumUpdater:
         # Then, add any NEW modules from VSCodium (auto-include new dependencies)
         for name, vscodium_module in vscodium_modules_by_name.items():
             if name not in windsurf_module_names and name not in VSCODIUM_EXCLUDED_MODULES:
-                # Convert to CommentedMap for proper YAML serialization
-                if isinstance(vscodium_module, dict) and not isinstance(vscodium_module, CommentedMap):
-                    # Use ruamel.yaml to properly load the module as CommentedMap
-                    from ruamel.yaml import YAML
-                    yaml = YAML()
-                    stream = io.StringIO()
-                    yaml.dump(vscodium_module, stream)
-                    stream.seek(0)
-                    commented_module = yaml.load(stream)
-                    new_modules.append(commented_module)
-                else:
-                    new_modules.append(copy.deepcopy(vscodium_module))
+                # Use YAML dump/load for proper CommentedMap conversion
+                stream = io.StringIO()
+                yaml_for_new.dump(vscodium_module, stream)
+                stream.seek(0)
+                new_modules.append(yaml_for_new.load(stream))
                 logger.info(f"Auto-including new module from VSCodium: {name}")
 
         updated["modules"] = new_modules
