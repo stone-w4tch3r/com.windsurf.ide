@@ -233,7 +233,7 @@ class VSCodiumUpdater:
         stored_modules = self._extract_shared_modules(stored_manifest)
         current_modules = self._extract_shared_modules_from_manifest(current_manifest)
         
-        for module_name in ["libsecret", "host-spawn", "wrapper-flatpak-wrapper"]:
+        for module_name in ["libsecret", "wrapper-flatpak-wrapper"]:
             if module_name in stored_modules and module_name in current_modules:
                 if self._modules_differ(stored_modules[module_name], current_modules[module_name]):
                     changes.append(f"Module '{module_name}' updated")
@@ -244,28 +244,26 @@ class VSCodiumUpdater:
         """Extract shared modules from stored tracking manifest."""
         modules = {}
         shared_modules = stored_manifest.get("shared_modules", {})
-        
+
         if "libsecret" in shared_modules:
             modules["libsecret"] = shared_modules["libsecret"]
-        if "host-spawn" in shared_modules:
-            modules["host-spawn"] = shared_modules["host-spawn"] 
         if "wrapper-flatpak-wrapper" in shared_modules:
             modules["wrapper-flatpak-wrapper"] = shared_modules["wrapper-flatpak-wrapper"]
-        
+
         return modules
     
     def _extract_shared_modules_from_manifest(self, manifest_data: dict) -> Dict[str, dict]:
         """Extract shared modules from VSCodium manifest."""
         modules = {}
-        
+
         for module in manifest_data.get("modules", []):
             if isinstance(module, str):
                 continue
-                
+
             name = module.get("name")
-            if name in ["libsecret", "host-spawn", "wrapper-flatpak-wrapper"]:
+            if name in ["libsecret", "wrapper-flatpak-wrapper"]:
                 modules[name] = module
-        
+
         return modules
     
     def _modules_differ(self, stored_module: dict, current_module: dict) -> bool:
@@ -278,19 +276,7 @@ class VSCodiumUpdater:
                 if source.get("type") == "archive":
                     return (stored_module.get("url") != source.get("url") or
                            stored_module.get("sha256") != source.get("sha256"))
-        
-        elif "version" in stored_module:
-            # host-spawn format in tracking manifest
-            stored_version = stored_module.get("version")
-            sources = current_module.get("sources", [])
-            for source in sources:
-                if source.get("type") == "file":
-                    url = source.get("url", "")
-                    import re
-                    version_match = re.search(r"/([v0-9.]+)/", url)
-                    if version_match and version_match.group(1) != stored_version:
-                        return True
-        
+
         elif "commit" in stored_module:
             # wrapper format in tracking manifest
             stored_commit = stored_module.get("commit")
@@ -298,7 +284,7 @@ class VSCodiumUpdater:
             for source in sources:
                 if source.get("type") == "git":
                     return stored_commit != source.get("commit")
-        
+
         return False
     
     def _apply_changes(self, windsurf_data: dict, vscodium_manifest: dict, changes: List[str]) -> dict:
@@ -321,8 +307,8 @@ class VSCodiumUpdater:
         # Update shared modules
         windsurf_modules = {m.get("name"): i for i, m in enumerate(updated.get("modules", [])) if isinstance(m, dict)}
         vscodium_modules = {m.get("name"): m for m in vscodium_manifest.get("modules", []) if isinstance(m, dict)}
-        
-        for module_name in ["libsecret", "host-spawn"]:
+
+        for module_name in ["libsecret", "wrapper-flatpak-wrapper"]:
             if module_name in windsurf_modules and module_name in vscodium_modules:
                 # Replace the module entirely
                 module_index = windsurf_modules[module_name]
@@ -378,33 +364,7 @@ class VSCodiumUpdater:
                         "url": source.get("url"),
                         "sha256": source.get("sha256")
                     }
-        
-        if "host-spawn" in vscodium_modules:
-            sources = vscodium_modules["host-spawn"].get("sources", [])
-            version = None
-            x86_64_sha = None
-            aarch64_sha = None
-            
-            for source in sources:
-                if source.get("type") == "file":
-                    url = source.get("url", "")
-                    import re
-                    version_match = re.search(r"/([v0-9.]+)/", url)
-                    if version_match:
-                        version = version_match.group(1)
-                    
-                    if "x86_64" in url:
-                        x86_64_sha = source.get("sha256")
-                    elif "aarch64" in url:
-                        aarch64_sha = source.get("sha256")
-            
-            if version:
-                updated["shared_modules"]["host-spawn"] = {
-                    "version": version,
-                    "x86_64_sha256": x86_64_sha,
-                    "aarch64_sha256": aarch64_sha
-                }
-        
+
         if "wrapper-flatpak-wrapper" in vscodium_modules:
             sources = vscodium_modules["wrapper-flatpak-wrapper"].get("sources", [])
             for source in sources:
@@ -441,7 +401,7 @@ This PR updates the Windsurf Flatpak based on changes in VSCodium Flatpak `{stor
 ⚠️ **This PR requires manual review** as it may affect:
 - Runtime environment compatibility
 - Permission model (finish-args)
-- Shared dependencies (libsecret, host-spawn)
+- Shared dependencies (libsecret)
 - Base application behavior
 
 ### Testing Checklist
