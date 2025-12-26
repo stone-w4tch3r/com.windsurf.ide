@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 WINDSURF_ONLY_MODULES = {
     "windsurf",  # Windsurf main app module (uses .tar.gz, different from codium .deb)
     "host-spawn",  # Windsurf uses pre-built binaries, VSCodium builds from source
+    "wrapper-flatpak-wrapper",  # Has Windsurf-specific config (editor_binary, program_name, etc.)
 }
 
 # Modules from VSCodium that MUST be excluded (never sync to Windsurf)
