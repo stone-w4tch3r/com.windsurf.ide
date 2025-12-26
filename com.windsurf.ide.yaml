@@ -13,15 +13,21 @@ finish-args:
   - --socket=fallback-x11
   - --socket=pulseaudio
   - --socket=ssh-auth
+  - --socket=session-bus
+  - --socket=system-bus
   - --share=network
   - --device=all
   - --filesystem=host
   - --persist=.windsurf-ide
   - --allow=devel
   - --talk-name=org.freedesktop.secrets
+  - --talk-name=org.kde.kwalletd
   - --talk-name=org.kde.kwalletd5
+  - --talk-name=org.kde.kwalletd6
+  - --talk-name=org.freedesktop.secrets
   - --talk-name=org.freedesktop.Flatpak
   - --env=XCURSOR_PATH=/run/host/user-share/icons:/run/host/share/icons
+  - --env=ELECTRON_OZONE_PLATFORM_HINT=wayland
   - --filesystem=xdg-run/gnupg:ro
   - --filesystem=xdg-config/kdeglobals:ro
   - --talk-name=com.canonical.AppMenu.Registrar
