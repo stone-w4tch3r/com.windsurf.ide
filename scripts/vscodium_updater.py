@@ -374,8 +374,10 @@ class VSCodiumUpdater:
                     # Convert to CommentedMap for proper YAML serialization
                     vscodium_module = vscodium_modules_by_name[name]
                     if isinstance(vscodium_module, dict) and not isinstance(vscodium_module, CommentedMap):
-                        commented_module = CommentedMap()
-                        commented_module.update(vscodium_module)
+                        # Use ruamel.yaml to properly load the module as CommentedMap
+                        from ruamel.yaml import YAML
+                        yaml = YAML()
+                        commented_module = yaml.load(io.StringIO(yaml.dump(vscodium_module)))
                         new_modules.append(commented_module)
                     else:
                         new_modules.append(copy.deepcopy(vscodium_module))
@@ -390,8 +392,10 @@ class VSCodiumUpdater:
             if name not in windsurf_module_names and name not in VSCODIUM_EXCLUDED_MODULES:
                 # Convert to CommentedMap for proper YAML serialization
                 if isinstance(vscodium_module, dict) and not isinstance(vscodium_module, CommentedMap):
-                    commented_module = CommentedMap()
-                    commented_module.update(vscodium_module)
+                    # Use ruamel.yaml to properly load the module as CommentedMap
+                    from ruamel.yaml import YAML
+                    yaml = YAML()
+                    commented_module = yaml.load(io.StringIO(yaml.dump(vscodium_module)))
                     new_modules.append(commented_module)
                 else:
                     new_modules.append(copy.deepcopy(vscodium_module))
