@@ -53,19 +53,31 @@ class EmergencyBrake:
         return True, None
 
     def _count_open_prs(self) -> int:
-        """Count open pull requests.
+        """Count open automation-related pull requests.
+
+        Only counts PRs created by the automation (with windsurf-update or
+        vscodium-update labels) to avoid false positives from manual PRs.
 
         Returns:
-            Number of open PRs
+            Number of open automation PRs
         """
         try:
-            # Use the GitHub API to count open PRs
+            # Use the GitHub API to count open PRs with automation labels
             url = f"https://api.github.com/repos/{self.github.owner}/{self.github.repo}/pulls"
             params = {"state": "open", "per_page": 100}
             response = self.github.session.get(url, params=params, timeout=self.github.timeout)
             response.raise_for_status()
             prs = response.json()
-            return len(prs)
+
+            # Count only PRs with automation labels (windsurf-update or vscodium-update)
+            automation_labels = {"windsurf-update", "vscodium-update"}
+            count = 0
+            for pr in prs:
+                pr_labels = {label.get("name") for label in pr.get("labels", [])}
+                if automation_labels & pr_labels:  # Intersection - has at least one automation label
+                    count += 1
+
+            return count
         except Exception as e:
             logger.error(f"Failed to count open PRs: {e}")
             # Assume safe if we can't check
