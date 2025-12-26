@@ -3,15 +3,29 @@
 import logging
 import copy
 from typing import Optional, Dict, Any, List, Set
-import yaml
 
 from .manifest_fetcher import ManifestFetcher
 from .github_client import GitHubClient
 from .exceptions import ValidationError, ManifestTransformError
 from .emergency_brake import EmergencyBrake
+from .yaml_utils import load_yaml, dump_yaml, safe_load_yaml
 
 
 logger = logging.getLogger(__name__)
+
+
+# Modules that MUST be preserved from Windsurf (never sync from VSCodium)
+# These are Windsurf-specific and incompatible with VSCodium's approach
+WINDSURF_ONLY_MODULES = {
+    "windsurf",  # Windsurf main app module (uses .tar.gz, different from codium .deb)
+    "host-spawn",  # Windsurf uses pre-built binaries, VSCodium builds from source
+}
+
+# Modules from VSCodium that MUST be excluded (never sync to Windsurf)
+# These are VSCodium-specific and incompatible with Windsurf
+VSCODIUM_EXCLUDED_MODULES = {
+    "codium",  # VSCodium main app module (uses .deb, different from windsurf .tar.gz)
+}
 
 
 class VSCodiumUpdater:
@@ -62,8 +76,8 @@ class VSCodiumUpdater:
             stored_vscodium_content = self.github.get_file_content("vscodium-manifest.yaml")
             if not stored_vscodium_content:
                 raise ValidationError("Stored VSCodium manifest not found")
-            
-            stored_vscodium = yaml.safe_load(stored_vscodium_content)
+
+            stored_vscodium = safe_load_yaml(stored_vscodium_content)
             
             # Extract version info
             current_version = self._extract_vscodium_version(current_vscodium)
@@ -78,12 +92,12 @@ class VSCodiumUpdater:
                 logger.info("No relevant changes detected in VSCodium Flatpak")
                 return None
             
-            # Get current Windsurf manifest
+            # Get current Windsurf manifest (use ruamel.yaml to preserve formatting)
             windsurf_content = self.github.get_file_content("com.windsurf.ide.yaml")
             if not windsurf_content:
                 raise ValidationError("Windsurf manifest not found")
-            
-            windsurf_data = yaml.safe_load(windsurf_content)
+
+            windsurf_data = load_yaml(windsurf_content)
             
             # Apply changes to Windsurf manifest
             updated_windsurf = self._apply_changes(windsurf_data, current_vscodium, changes)
@@ -95,21 +109,21 @@ class VSCodiumUpdater:
             # Create branch
             self.github.create_branch(branch_name)
             
-            # Update Windsurf manifest
+            # Update Windsurf manifest (use dump_yaml to preserve formatting)
             windsurf_sha = self.github.get_file_sha("com.windsurf.ide.yaml")
             self.github.create_or_update_file(
                 path="com.windsurf.ide.yaml",
-                content=yaml.dump(updated_windsurf, default_flow_style=False, sort_keys=False, width=100, indent=2),
+                content=dump_yaml(updated_windsurf),
                 message=f"Update Windsurf based on VSCodium {current_version}",
                 branch=branch_name,
                 sha=windsurf_sha
             )
             
-            # Update tracking manifest
+            # Update tracking manifest (use dump_yaml to preserve formatting)
             tracking_sha = self.github.get_file_sha("vscodium-manifest.yaml")
             self.github.create_or_update_file(
                 path="vscodium-manifest.yaml",
-                content=yaml.dump(updated_vscodium_tracking, default_flow_style=False, sort_keys=False, width=100, indent=2),
+                content=dump_yaml(updated_vscodium_tracking),
                 message=f"Update VSCodium tracking to {current_version}",
                 branch=branch_name,
                 sha=tracking_sha
@@ -289,31 +303,89 @@ class VSCodiumUpdater:
     
     def _apply_changes(self, windsurf_data: dict, vscodium_manifest: dict, changes: List[str]) -> dict:
         """Apply detected changes to Windsurf manifest.
-        
+
+        Uses Windsurf's module list as the base and:
+        1. Preserves Windsurf-only modules (windsurf, host-spawn)
+        2. Updates shared modules from VSCodium (libsecret, wrapper-flatpak-wrapper)
+        3. Auto-includes new modules from VSCodium (except excluded ones)
+        4. Preserves Windsurf's original module order
+
         Args:
             windsurf_data: Current Windsurf manifest
             vscodium_manifest: Current VSCodium manifest
             changes: List of detected changes
-            
+
         Returns:
             Updated Windsurf manifest
         """
+        from ruamel.yaml.comments import CommentedMap, CommentedSeq
+
         updated = copy.deepcopy(windsurf_data)
-        
+
         # Update runtime/base versions
         updated["runtime-version"] = vscodium_manifest.get("runtime-version")
         updated["base-version"] = vscodium_manifest.get("base-version")
-        
-        # Update shared modules
-        windsurf_modules = {m.get("name"): i for i, m in enumerate(updated.get("modules", [])) if isinstance(m, dict)}
-        vscodium_modules = {m.get("name"): m for m in vscodium_manifest.get("modules", []) if isinstance(m, dict)}
 
-        for module_name in ["libsecret", "wrapper-flatpak-wrapper"]:
-            if module_name in windsurf_modules and module_name in vscodium_modules:
-                # Replace the module entirely
-                module_index = windsurf_modules[module_name]
-                updated["modules"][module_index] = copy.deepcopy(vscodium_modules[module_name])
-        
+        # Get module names from both manifests
+        windsurf_module_names = set()
+        windsurf_modules_by_name = {}
+        for i, module in enumerate(updated.get("modules", [])):
+            if isinstance(module, dict):
+                name = module.get("name")
+                if name:
+                    windsurf_module_names.add(name)
+                    windsurf_modules_by_name[name] = module
+
+        vscodium_modules_by_name = {}
+        for module in vscodium_manifest.get("modules", []):
+            if isinstance(module, dict):
+                name = module.get("name")
+                if name:
+                    vscodium_modules_by_name[name] = module
+
+        # Build new module list using Windsurf's order as base
+        new_modules = CommentedSeq()
+
+        # First, add all Windsurf modules (preserves order)
+        for module in updated.get("modules", []):
+            if isinstance(module, str):
+                # String references (like shared-modules/libusb/libusb.json) stay as-is
+                new_modules.append(module)
+            elif isinstance(module, dict):
+                name = module.get("name")
+                if not name:
+                    # Module without name, keep as-is
+                    new_modules.append(module)
+                    continue
+
+                # Windsurf-only modules: preserve exactly as-is
+                if name in WINDSURF_ONLY_MODULES:
+                    new_modules.append(module)
+                    logger.debug(f"Preserving Windsurf-only module: {name}")
+                    continue
+
+                # VSCodium-excluded modules: skip (don't include)
+                if name in VSCODIUM_EXCLUDED_MODULES:
+                    logger.debug(f"Skipping VSCodium-excluded module: {name}")
+                    continue
+
+                # Shared modules: update from VSCodium if available
+                if name in vscodium_modules_by_name:
+                    new_modules.append(copy.deepcopy(vscodium_modules_by_name[name]))
+                    logger.debug(f"Updating shared module from VSCodium: {name}")
+                else:
+                    # Module exists in Windsurf but not in VSCodium, keep as-is
+                    new_modules.append(module)
+                    logger.debug(f"Keeping Windsurf module (not in VSCodium): {name}")
+
+        # Then, add any NEW modules from VSCodium (auto-include new dependencies)
+        for name, vscodium_module in vscodium_modules_by_name.items():
+            if name not in windsurf_module_names and name not in VSCODIUM_EXCLUDED_MODULES:
+                new_modules.append(copy.deepcopy(vscodium_module))
+                logger.info(f"Auto-including new module from VSCodium: {name}")
+
+        updated["modules"] = new_modules
+
         # Update finish-args, preserving Windsurf-specific ones
         windsurf_specific_args = {
             "--persist=.windsurf-ide",
@@ -322,14 +394,14 @@ class VSCodiumUpdater:
             "--talk-name=org.freedesktop.Notifications",
             "--require-version=0.10.3",  # If present
         }
-        
+
         vscodium_args = set(vscodium_manifest.get("finish-args", []))
         vscodium_specific_args = {"--persist=.vscode-oss"}
-        
+
         # Merge args: VSCodium args + Windsurf-specific args, minus VSCodium-specific
         merged_args = list((vscodium_args - vscodium_specific_args) | windsurf_specific_args)
         updated["finish-args"] = sorted(merged_args)
-        
+
         return updated
     
     def _update_tracking_manifest(self, stored_manifest: dict, current_vscodium: dict) -> dict:
