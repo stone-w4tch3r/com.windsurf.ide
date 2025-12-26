@@ -27,18 +27,28 @@ class EmergencyBrake:
             Tuple of (is_safe, reason). Returns (True, None) if safe to proceed,
             (False, reason) if should abort.
 
-        Thresholds:
-        - Open PRs: >2 total
+        Thresholds (independent per PR type):
+        - Windsurf update PRs: >2
+        - VSCodium update PRs: >2
         - Orphaned branches: >10 windsurf/vscodium branches
 
-        Note: Workflow failure checking is not implemented due to GitHub API
+        Note: Each PR type has its own independent threshold. This allows
+        both automation streams to operate concurrently without blocking each other.
+
+        Workflow failure checking is not implemented due to GitHub API
         limitations. The brake relies on PR and orphaned branch counts as proxies
         for automation health.
         """
-        # Check open PRs
-        open_prs = self._count_open_prs()
-        if open_prs > 2:
-            reason = f"Too many open PRs ({open_prs} > threshold of 2). Automation may be stalled."
+        # Check each PR type independently
+        pr_counts = self._count_open_prs_by_type()
+
+        if pr_counts["windsurf"] > 2:
+            reason = f"Too many Windsurf update PRs ({pr_counts['windsurf']} > threshold of 2). Automation may be stalled."
+            logger.warning(f"Emergency brake triggered: {reason}")
+            return False, reason
+
+        if pr_counts["vscodium"] > 2:
+            reason = f"Too many VSCodium update PRs ({pr_counts['vscodium']} > threshold of 2). Automation may be stalled."
             logger.warning(f"Emergency brake triggered: {reason}")
             return False, reason
 
@@ -52,36 +62,37 @@ class EmergencyBrake:
         logger.info("Emergency brake check passed: safe to proceed")
         return True, None
 
-    def _count_open_prs(self) -> int:
-        """Count open automation-related pull requests.
+    def _count_open_prs_by_type(self) -> dict[str, int]:
+        """Count open automation-related pull requests by type.
 
         Only counts PRs created by the automation (with windsurf-update or
         vscodium-update labels) to avoid false positives from manual PRs.
 
         Returns:
-            Number of open automation PRs
+            Dict with keys "windsurf" and "vscodium" containing respective counts
         """
+        result = {"windsurf": 0, "vscodium": 0}
+
         try:
-            # Use the GitHub API to count open PRs with automation labels
             url = f"https://api.github.com/repos/{self.github.owner}/{self.github.repo}/pulls"
             params = {"state": "open", "per_page": 100}
             response = self.github.session.get(url, params=params, timeout=self.github.timeout)
             response.raise_for_status()
             prs = response.json()
 
-            # Count only PRs with automation labels (windsurf-update or vscodium-update)
-            automation_labels = {"windsurf-update", "vscodium-update"}
-            count = 0
             for pr in prs:
                 pr_labels = {label.get("name") for label in pr.get("labels", [])}
-                if automation_labels & pr_labels:  # Intersection - has at least one automation label
-                    count += 1
 
-            return count
+                if "windsurf-update" in pr_labels:
+                    result["windsurf"] += 1
+                if "vscodium-update" in pr_labels:
+                    result["vscodium"] += 1
+
+            return result
         except Exception as e:
-            logger.error(f"Failed to count open PRs: {e}")
+            logger.error(f"Failed to count open PRs by type: {e}")
             # Assume safe if we can't check
-            return 0
+            return result
 
     def _count_orphaned_branches(self) -> int:
         """Count orphaned windsurf/vscodium branches.
