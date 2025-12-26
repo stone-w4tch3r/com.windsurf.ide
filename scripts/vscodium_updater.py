@@ -371,7 +371,14 @@ class VSCodiumUpdater:
 
                 # Shared modules: update from VSCodium if available
                 if name in vscodium_modules_by_name:
-                    new_modules.append(copy.deepcopy(vscodium_modules_by_name[name]))
+                    # Convert to CommentedMap for proper YAML serialization
+                    vscodium_module = vscodium_modules_by_name[name]
+                    if isinstance(vscodium_module, dict) and not isinstance(vscodium_module, CommentedMap):
+                        commented_module = CommentedMap()
+                        commented_module.update(vscodium_module)
+                        new_modules.append(commented_module)
+                    else:
+                        new_modules.append(copy.deepcopy(vscodium_module))
                     logger.debug(f"Updating shared module from VSCodium: {name}")
                 else:
                     # Module exists in Windsurf but not in VSCodium, keep as-is
@@ -381,7 +388,13 @@ class VSCodiumUpdater:
         # Then, add any NEW modules from VSCodium (auto-include new dependencies)
         for name, vscodium_module in vscodium_modules_by_name.items():
             if name not in windsurf_module_names and name not in VSCODIUM_EXCLUDED_MODULES:
-                new_modules.append(copy.deepcopy(vscodium_module))
+                # Convert to CommentedMap for proper YAML serialization
+                if isinstance(vscodium_module, dict) and not isinstance(vscodium_module, CommentedMap):
+                    commented_module = CommentedMap()
+                    commented_module.update(vscodium_module)
+                    new_modules.append(commented_module)
+                else:
+                    new_modules.append(copy.deepcopy(vscodium_module))
                 logger.info(f"Auto-including new module from VSCodium: {name}")
 
         updated["modules"] = new_modules
