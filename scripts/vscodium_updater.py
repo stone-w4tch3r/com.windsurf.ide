@@ -378,7 +378,10 @@ class VSCodiumUpdater:
                         # Use ruamel.yaml to properly load the module as CommentedMap
                         from ruamel.yaml import YAML
                         yaml = YAML()
-                        commented_module = yaml.load(io.StringIO(yaml.dump(vscodium_module)))
+                        stream = io.StringIO()
+                        yaml.dump(vscodium_module, stream)
+                        stream.seek(0)
+                        commented_module = yaml.load(stream)
                         new_modules.append(commented_module)
                     else:
                         new_modules.append(copy.deepcopy(vscodium_module))
@@ -396,7 +399,10 @@ class VSCodiumUpdater:
                     # Use ruamel.yaml to properly load the module as CommentedMap
                     from ruamel.yaml import YAML
                     yaml = YAML()
-                    commented_module = yaml.load(io.StringIO(yaml.dump(vscodium_module)))
+                    stream = io.StringIO()
+                    yaml.dump(vscodium_module, stream)
+                    stream.seek(0)
+                    commented_module = yaml.load(stream)
                     new_modules.append(commented_module)
                 else:
                     new_modules.append(copy.deepcopy(vscodium_module))
