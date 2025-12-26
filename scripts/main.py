@@ -19,7 +19,6 @@ from .windsurf_updater import WindsurfUpdater
 from .vscodium_updater import VSCodiumUpdater
 from .validator import FlatpakValidator
 from .exceptions import WindsurfAutomationError
-from .emergency_brake import EmergencyBrake
 
 
 def setup_logging(debug: bool = False) -> None:

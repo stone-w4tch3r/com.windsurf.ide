@@ -46,6 +46,10 @@ class VSCodiumUpdater:
                 return None
 
             # Check if another PR is already in progress (single PR enforcement)
+            # NOTE: This check happens before branch creation. In the rare case of
+            # concurrent workflow execution (e.g., manual trigger + scheduled trigger),
+            # multiple PRs could still be created. This is an acceptable trade-off
+            # given the low probability (scheduled runs are 6 hours apart).
             if self.github.has_open_prs():
                 logger.info("Another PR is already in progress, skipping this run")
                 return None

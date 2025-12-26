@@ -262,10 +262,11 @@ The automation includes comprehensive validation:
 The automation is designed to **fail fast** and **fail safe**:
 
 - **Network errors**: Retry with exponential backoff
-- **Validation errors**: Stop and report detailed issues  
+- **Validation errors**: Stop and report detailed issues
 - **Build failures**: Block auto-merge, require manual intervention
 - **API rate limits**: Respect GitHub API limits with proper headers
 - **Auto-merge issues**: Automatically enable repository auto-merge if disabled
+- **Emergency brake**: Pre-flight checks prevent automation runaway by blocking updates when thresholds are exceeded (>2 open PRs or >10 orphaned branches)
 
 ## 🔗 Integration Points
 

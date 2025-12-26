@@ -28,9 +28,12 @@ class EmergencyBrake:
             (False, reason) if should abort.
 
         Thresholds:
-        - Recent workflow failures: >3 in last 24 hours
         - Open PRs: >2 total
         - Orphaned branches: >10 windsurf/vscodium branches
+
+        Note: Workflow failure checking is not implemented due to GitHub API
+        limitations. The brake relies on PR and orphaned branch counts as proxies
+        for automation health.
         """
         # Check open PRs
         open_prs = self._count_open_prs()

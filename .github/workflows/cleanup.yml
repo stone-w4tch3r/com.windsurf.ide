@@ -22,7 +22,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Delete windsurf-update branches older than 7 days with no associated PR
+          # Delete windsurf-update branches with no associated open PR
           echo "Checking for orphaned windsurf branches..."
 
           # Get all windsurf branches
@@ -48,7 +48,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Delete vscodium-update branches older than 7 days with no associated PR
+          # Delete vscodium-update branches with no associated open PR
           echo "Checking for orphaned vscodium branches..."
 
           # Get all vscodium branches
