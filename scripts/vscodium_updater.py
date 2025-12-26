@@ -2,6 +2,7 @@
 
 import logging
 import copy
+import io
 from typing import Optional, Dict, Any, List, Set
 
 from .manifest_fetcher import ManifestFetcher
