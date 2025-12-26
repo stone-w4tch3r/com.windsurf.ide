@@ -2,14 +2,13 @@
 
 import logging
 import copy
-import io
-from typing import Optional, Dict, Any, List, Set
+import yaml
+from typing import Optional, Dict, Any, List
 
 from .manifest_fetcher import ManifestFetcher
 from .github_client import GitHubClient
 from .exceptions import ValidationError, ManifestTransformError
 from .emergency_brake import EmergencyBrake
-from .yaml_utils import load_yaml, dump_yaml, safe_load_yaml
 
 
 logger = logging.getLogger(__name__)
@@ -78,7 +77,7 @@ class VSCodiumUpdater:
             if not stored_vscodium_content:
                 raise ValidationError("Stored VSCodium manifest not found")
 
-            stored_vscodium = safe_load_yaml(stored_vscodium_content)
+            stored_vscodium = yaml.safe_load(stored_vscodium_content)
             
             # Extract version info
             current_version = self._extract_vscodium_version(current_vscodium)
@@ -93,38 +92,46 @@ class VSCodiumUpdater:
                 logger.info("No relevant changes detected in VSCodium Flatpak")
                 return None
             
-            # Get current Windsurf manifest (use ruamel.yaml to preserve formatting)
+            # Get current Windsurf manifest
             windsurf_content = self.github.get_file_content("com.windsurf.ide.yaml")
             if not windsurf_content:
                 raise ValidationError("Windsurf manifest not found")
 
-            windsurf_data = load_yaml(windsurf_content)
-            
+            windsurf_data = yaml.safe_load(windsurf_content)
+
             # Apply changes to Windsurf manifest
             updated_windsurf = self._apply_changes(windsurf_data, current_vscodium, changes)
             updated_vscodium_tracking = self._update_tracking_manifest(stored_vscodium, current_vscodium)
-            
+
             # Create branch and PR
             branch_name = f"vscodium-update-{current_version.replace('.', '-')}"
-            
+
             # Create branch
             self.github.create_branch(branch_name)
-            
-            # Update Windsurf manifest (use dump_yaml to preserve formatting)
+
+            # Dump YAML with sensible formatting
+            dump_params = {
+                'default_flow_style': False,
+                'sort_keys': False,
+                'width': 100,
+                'indent': 2
+            }
+
+            # Update Windsurf manifest
             windsurf_sha = self.github.get_file_sha("com.windsurf.ide.yaml")
             self.github.create_or_update_file(
                 path="com.windsurf.ide.yaml",
-                content=dump_yaml(updated_windsurf),
+                content=yaml.dump(updated_windsurf, **dump_params),
                 message=f"Update Windsurf based on VSCodium {current_version}",
                 branch=branch_name,
                 sha=windsurf_sha
             )
-            
-            # Update tracking manifest (use dump_yaml to preserve formatting)
+
+            # Update tracking manifest
             tracking_sha = self.github.get_file_sha("vscodium-manifest.yaml")
             self.github.create_or_update_file(
                 path="vscodium-manifest.yaml",
-                content=dump_yaml(updated_vscodium_tracking),
+                content=yaml.dump(updated_vscodium_tracking, **dump_params),
                 message=f"Update VSCodium tracking to {current_version}",
                 branch=branch_name,
                 sha=tracking_sha
@@ -319,8 +326,6 @@ class VSCodiumUpdater:
         Returns:
             Updated Windsurf manifest
         """
-        from ruamel.yaml.comments import CommentedMap, CommentedSeq
-
         updated = copy.deepcopy(windsurf_data)
 
         # Update runtime/base versions
@@ -344,56 +349,48 @@ class VSCodiumUpdater:
                 if name:
                     vscodium_modules_by_name[name] = module
 
-        # Build new module list by modifying Windsurf's list in-place
-        # This preserves the original CommentedSeq's formatting attributes
-        windsurf_modules = updated.get("modules", [])
+        # Build new module list using Windsurf's order as base
+        new_modules = []
 
-        # First pass: update shared modules and track indices to remove
-        indices_to_remove = []
-        for i, module in enumerate(windsurf_modules):
-            if isinstance(module, dict):
+        # First, add all Windsurf modules (preserves order)
+        for module in updated.get("modules", []):
+            if isinstance(module, str):
+                # String references (like shared-modules/libusb/libusb.json) stay as-is
+                new_modules.append(module)
+            elif isinstance(module, dict):
                 name = module.get("name")
                 if not name:
+                    # Module without name, keep as-is
+                    new_modules.append(module)
                     continue
 
-                # VSCodium-excluded modules: mark for removal
+                # Windsurf-only modules: preserve exactly as-is
+                if name in WINDSURF_ONLY_MODULES:
+                    new_modules.append(module)
+                    logger.debug(f"Preserving Windsurf-only module: {name}")
+                    continue
+
+                # VSCodium-excluded modules: skip (don't include)
                 if name in VSCODIUM_EXCLUDED_MODULES:
-                    indices_to_remove.append(i)
-                    logger.debug(f"Marking VSCodium-excluded module for removal: {name}")
+                    logger.debug(f"Skipping VSCodium-excluded module: {name}")
                     continue
 
-                # Shared modules: update from VSCodium
-                if name in vscodium_modules_by_name and name not in WINDSURF_ONLY_MODULES:
-                    vscodium_module = vscodium_modules_by_name[name]
-                    # Update existing CommentedMap in-place to preserve structure
-                    if isinstance(module, CommentedMap):
-                        module.clear()
-                        module.update(vscodium_module)
-                        logger.debug(f"Updating shared module from VSCodium: {name}")
+                # Shared modules: update from VSCodium if available
+                if name in vscodium_modules_by_name:
+                    new_modules.append(copy.deepcopy(vscodium_modules_by_name[name]))
+                    logger.debug(f"Updating shared module from VSCodium: {name}")
+                else:
+                    # Module exists in Windsurf but not in VSCodium, keep as-is
+                    new_modules.append(module)
+                    logger.debug(f"Keeping Windsurf module (not in VSCodium): {name}")
 
-        # Remove excluded modules in reverse order to preserve indices
-        for i in reversed(indices_to_remove):
-            del windsurf_modules[i]
-
-        # Second pass: add new modules from VSCodium
-        # Use YAML dump/load to create properly formatted CommentedMaps
-        from ruamel.yaml import YAML
-        yaml_for_new = YAML()
-        yaml_for_new.preserve_quotes = True
-        yaml_for_new.preserve_order = True
-        yaml_for_new.default_flow_style = False
-        yaml_for_new.indent(mapping=2, sequence=2, offset=2)
-        yaml_for_new.width = 100
-
+        # Then, add any NEW modules from VSCodium (auto-include new dependencies)
         for name, vscodium_module in vscodium_modules_by_name.items():
             if name not in windsurf_module_names and name not in VSCODIUM_EXCLUDED_MODULES:
-                # Use YAML dump/load for proper CommentedMap conversion
-                stream = io.StringIO()
-                yaml_for_new.dump(vscodium_module, stream)
-                stream.seek(0)
-                new_module = yaml_for_new.load(stream)
-                windsurf_modules.append(new_module)
+                new_modules.append(copy.deepcopy(vscodium_module))
                 logger.info(f"Auto-including new module from VSCodium: {name}")
+
+        updated["modules"] = new_modules
 
         # Update finish-args, preserving Windsurf-specific ones
         windsurf_specific_args = {
