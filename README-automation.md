@@ -2,6 +2,113 @@
 
 This repository contains automation scripts to maintain the Windsurf Flatpak based on VSCodium's Flatpak, with minimal manual intervention.
 
+## 🎯 Automation Logic Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         WINDSURF FLATPAK AUTOMATION                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                              ╔═════════════════════════╗
+                              ║   SCHEDULED (6h/daily)  ║
+                              ║   OR MANUAL TRIGGER     ║
+                              ╚═══════════════╦═════════╝
+                                                │
+                    ┌───────────────────────────┴───────────────────────────┐
+                    │                                                         │
+                    ▼                                                         ▼
+        ╔═════════════════════════════╗                    ╔═════════════════════════════╗
+        ║   WINDSURF UPDATE WORKFLOW  ║                    ║  VSCODIUM UPDATE WORKFLOW   ║
+        ║   (windsurf-update.yml)     ║                    ║  (vscodium-update.yml)     ║
+        ╚═══════════════╦══════════════╛                    ╚═══════════════╦══════════════╛
+                            │                                                  │
+                            │ 1. Emergency brake check                         │ 1. Emergency brake check
+                            │    (>2 PRs? >10 branches?)                       │    (>2 PRs? >10 branches?)
+                            │    → Abort if exceeded                           │    → Abort if exceeded
+                            │                                                  │
+                            │ 2. Single PR enforcement                         │ 2. Single PR enforcement
+                            │    (Check for open PRs)                           │    (Check for open PRs)
+                            │    → Skip if PR exists                            │    → Skip if PR exists
+                            │                                                  │
+                            │ 3. Fetch Windsurf version                        │ 3. Fetch VSCodium manifest
+                            │    from API                                       │    from upstream
+                            │                                                  │
+                            │ 4. Compare versions                              │ 4. Compare with tracking
+                            │    → Skip if current                              │    → Detect changes:
+                            │                                                  │      - Runtime version
+                            │ 5. Update manifest                               │      - Base version
+                            │    (surgical text replace)                        │      - Finish-args
+                            │    - Binary URL                                   │      - libsecret module
+                            │    - SHA256 hash                                  │      - wrapper module
+                            │    - File size                                    │      - NOT host-spawn*
+                            │    - Metainfo date                                │
+                            │                                                  │ 5. Apply changes to Windsurf
+                            │ 6. Create branch                                  │    (preserve Windsurf-specific)
+                            │    (delete if exists)                             │
+                            │                                                  │ 6. Create branch
+                            │ 7. Commit changes                                 │    (delete if exists)
+                            │                                                  │
+                            │ 8. Create PR                                      │ 7. Commit changes
+                            │    - Enable auto-merge                           │
+                            │    - Label: windsurf-update,                     │ 8. Create PR
+                            │             automated                            │    - NO auto-merge
+                            │                                                  │    - Label: vscodium-update,
+                            │ 9. Sync branch with master                       │             manual-review
+                            │    (strict branch protection)                     │
+                            │                                                  │
+                            ▼                                                  ▼
+        ╔═════════════════════════════╗                    ╔═════════════════════════════╗
+        ║     BUILD & TEST WORKFLOW   ║                    ║     BUILD & TEST WORKFLOW   ║
+        ║     (build-test.yml)        ║                    ║     (build-test.yml)        ║
+        ╚═══════════════╦══════════════╛                    ╚═══════════════╦══════════════╛
+                            │                                                  │
+                            │ 1. Validate manifest                              │ 1. Validate manifest
+                            │    → "Validate Manifest" check                    │    → "Validate Manifest" check
+                            │                                                  │
+                            │ 2. Build Flatpak                                  │ 2. Build Flatpak
+                            │    → "Build Flatpak" check                         │    → "Build Flatpak" check
+                            │                                                  │
+                            └───────────────────┬────────────────────────┬──────┘
+                                                │                        │
+                                                ▼                        ▼
+                                    ┌───────────────────────┐    ┌───────────────────────┐
+                                    │   CHECKS PASS?        │    │   CHECKS PASS?        │
+                                    └───────────────────────┘    └───────────────────────┘
+                                                │                        │
+                    ┌───────────────────────────┴────────────────────┬────────┴───────────────────────┐
+                    │                                                    │                                │
+                    ▼ YES                                               ▼ YES                           ▼ NO
+        ╔═════════════════════════════╗                    ╔═════════════════════════════╗   ┌──────────────────┐
+        ║      AUTO-MERGE!            ║                    ║  MANUAL REVIEW REQUIRED    │   │ Build fails -    │
+        ║  (Native GitHub auto-merge) │                    ║  - Review PR changes        │   │ PR stays open    │
+        ║  - Merge method: SQUASH     ║                    ║  - Approve if OK            │   │ - Manual fix     │
+        ║  - Delete branch            ║                    ║  - Merge manually           │   └──────────────────┘
+        ╚═══════════════╦══════════════╛                    ╚═══════════════╦══════════════╛
+                        │                                                  │
+                        ▼                                                  ▼
+        ╔═════════════════════════════╗                    ╔═════════════════════════════╗
+        ║   DEPLOY PAGES WORKFLOW      ║                    ║   DEPLOY PAGES WORKFLOW    ║
+        ║   (deploy-pages.yml)         ║                    ║   (deploy-pages.yml)        ║
+        ╚═══════════════╦══════════════╛                    ╚═══════════════╦══════════════╛
+                            │                                                  │
+                            │ 1. Download built repo                            │ 1. Download built repo
+                            │ 2. Sign with GPG                                   │ 2. Sign with GPG
+                            │ 3. Publish to GitHub Pages                         │ 3. Publish to GitHub Pages
+                            │    (flatpak install com.windsurf.ide)               │    (flatpak install com.windsurf.ide)
+                            │                                                  │
+                            ▼                                                  ▼
+                        ╔═════════════════════════════════════════════════════════════╗
+                        ║                 CLEANUP WORKFLOW (daily)                   ║
+                        ║                 (cleanup.yml)                              ║
+                        ║   - Delete orphaned branches (no associated PR)            ║
+                        ╚═════════════════════════════════════════════════════════════╝
+
+* host-spawn is excluded from VSCodium sync because:
+  - VSCodium builds it from Go source (requires local modules.txt file)
+  - Windsurf uses pre-built binaries (simpler, no Go SDK needed)
+  - The two approaches are incompatible - keeping Windsurf's approach
+```
+
 ## 🎯 Overview
 
 The automation follows a **static files + PR-based updates** approach:
@@ -107,7 +214,8 @@ For auto-merge to work properly, you **must** configure:
 2. **Configure Branch Protection**: Settings → Branches → Add rule for `master`:
    - ☑️ "Require status checks to pass before merging"
    - ☑️ "Require branches to be up to date before merging"
-   - Add required status checks: `validate` and `build`
+   - ⬜ **Do NOT require pull request reviews** (Windsurf PRs should auto-merge without review)
+   - Add required status checks: `Validate Manifest` and `Build Flatpak`
 
 #### Important Notes:
 - Status checks (`validate`, `build`) must run at least once before they appear in the branch protection settings
@@ -175,15 +283,17 @@ If you're setting up a new repository, follow these steps **in order**:
    {
      "required_status_checks": {
        "strict": true,
-       "contexts": ["validate", "build"]
+       "contexts": ["Validate Manifest", "Build Flatpak"]
      },
      "enforce_admins": false,
      "required_pull_request_reviews": null,
-     "restrictions": null
+     "restrictions": null,
+     "allow_deletions": false
    }
    EOF
 
    # Or manually: Settings → Branches → Add rule → Configure as described above
+   # IMPORTANT: Do NOT enable "Require pull request reviews" - Windsurf PRs need to auto-merge
    ```
 
 6. **Test the setup**:
@@ -307,8 +417,10 @@ Monitor automation health via:
 3. **Auto-merge not working**:
    - Verify repository auto-merge is enabled (Settings → General → Allow auto-merge)
    - Ensure branch protection rules are configured with required status checks
-   - Check that `validate` and `build` jobs completed successfully
+   - **IMPORTANT**: Branch protection should NOT require pull request reviews
+   - Check that `Validate Manifest` and `Build Flatpak` jobs completed successfully
    - Confirm the PR has auto-merge enabled (should show "Will auto-merge" label)
+   - If PR is behind master, automation will sync it before auto-merge attempts
 4. **Status checks not appearing**: Jobs must run at least once before appearing in branch protection settings
 5. **PRs created by automation don't trigger workflows**:
    - **Root cause**: GitHub's GITHUB_TOKEN limitation - bot-created PRs don't trigger pull_request workflows
