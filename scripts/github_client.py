@@ -106,38 +106,121 @@ class GitHubClient:
         except requests.RequestException as e:
             raise NetworkError(f"Failed to update file {path}: {e}") from e
     
+    def has_open_prs(self, label: Optional[str] = None) -> bool:
+        """Check if repository has any open PRs.
+
+        Args:
+            label: Optional label to filter by
+
+        Returns:
+            True if any open PRs exist
+        """
+        try:
+            url = f"https://api.github.com/repos/{self.owner}/{self.repo}/pulls"
+            params = {"state": "open", "per_page": 100}
+            response = self.session.get(url, params=params, timeout=self.timeout)
+            response.raise_for_status()
+            prs = response.json()
+
+            if label:
+                return any(
+                    any(l["name"] == label for l in pr.get("labels", []))
+                    for pr in prs
+                )
+            return len(prs) > 0
+
+        except requests.RequestException as e:
+            logger.error(f"Failed to check for open PRs: {e}")
+            return False
+
+    def delete_branch(self, branch_name: str) -> bool:
+        """Delete a branch if it exists.
+
+        Returns:
+            True if deleted or didn't exist, False on error
+        """
+        try:
+            url = f"https://api.github.com/repos/{self.owner}/{self.repo}/git/refs/heads/{branch_name}"
+            response = self.session.delete(url, timeout=self.timeout)
+
+            # 404 means branch doesn't exist - that's fine
+            if response.status_code == 404:
+                logger.debug(f"Branch {branch_name} does not exist, nothing to delete")
+                return True
+
+            response.raise_for_status()
+            logger.info(f"Deleted existing branch {branch_name}")
+            return True
+
+        except requests.RequestException as e:
+            logger.warning(f"Failed to delete branch {branch_name}: {e}")
+            return False
+
+    def update_branch_with_base(self, branch_name: str, base_branch: str = "master") -> bool:
+        """Merge base branch into PR branch to make it up-to-date.
+
+        This is needed when strict branch protection is enabled, as it requires
+        PR branches to be up-to-date with the base branch before merging.
+
+        Returns:
+            True if successful
+        """
+        try:
+            url = f"https://api.github.com/repos/{self.owner}/{self.repo}/merges"
+            data = {
+                "head": base_branch,
+                "base": branch_name
+            }
+
+            response = self.session.post(url, json=data, timeout=self.timeout)
+            response.raise_for_status()
+
+            logger.info(f"Merged {base_branch} into {branch_name}")
+            return True
+
+        except requests.RequestException as e:
+            logger.error(f"Failed to update branch {branch_name} with {base_branch}: {e}")
+            return False
+
     def create_branch(self, branch_name: str, base_branch: str = "master") -> Dict[str, Any]:
         """Create a new branch.
-        
+
+        First deletes the branch if it exists, then creates a fresh branch.
+        This prevents failures when the branch already exists from a previous run.
+
         Args:
             branch_name: Name of new branch
             base_branch: Base branch to create from
-            
+
         Returns:
             API response data
-            
+
         Raises:
             NetworkError: If API request fails
         """
         try:
+            # First, delete the branch if it exists
+            self.delete_branch(branch_name)
+
             # Get base branch SHA
             base_url = f"https://api.github.com/repos/{self.owner}/{self.repo}/git/ref/heads/{base_branch}"
             base_response = self.session.get(base_url, timeout=self.timeout)
             base_response.raise_for_status()
             base_sha = base_response.json()["object"]["sha"]
-            
+
             # Create new branch
             url = f"https://api.github.com/repos/{self.owner}/{self.repo}/git/refs"
             data = {
                 "ref": f"refs/heads/{branch_name}",
                 "sha": base_sha
             }
-            
+
             response = self.session.post(url, json=data, timeout=self.timeout)
             response.raise_for_status()
-            
+
+            logger.info(f"Created branch {branch_name} from {base_branch}")
             return response.json()
-            
+
         except requests.RequestException as e:
             raise NetworkError(f"Failed to create branch {branch_name}: {e}") from e
     

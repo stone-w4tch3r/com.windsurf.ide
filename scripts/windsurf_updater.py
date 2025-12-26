@@ -10,6 +10,7 @@ from .version_fetcher import VersionFetcher
 from .github_client import GitHubClient
 from .windsurf_types import WindsurfVersionInfo
 from .exceptions import ValidationError, ManifestTransformError
+from .emergency_brake import EmergencyBrake
 
 
 logger = logging.getLogger(__name__)
@@ -20,28 +21,41 @@ class WindsurfUpdater:
     
     def __init__(self, github_client: GitHubClient):
         """Initialize the updater.
-        
+
         Args:
             github_client: GitHub API client
         """
         self.github = github_client
         self.version_fetcher = VersionFetcher()
+        self.emergency_brake = EmergencyBrake(github_client)
     
     def check_and_update(self) -> Optional[str]:
         """Check for Windsurf updates and create PR if needed.
-        
+
         Returns:
             PR URL if update was created, None if no update needed
-            
+
         Raises:
             ValidationError: If validation fails
             ManifestTransformError: If manifest transformation fails
         """
         try:
+            # Run emergency brake pre-flight checks
+            logger.info("Running emergency brake pre-flight checks")
+            is_safe, reason = self.emergency_brake.check()
+            if not is_safe:
+                logger.warning(f"Emergency brake triggered: {reason}")
+                return None
+
+            # Check if another PR is already in progress (single PR enforcement)
+            if self.github.has_open_prs():
+                logger.info("Another PR is already in progress, skipping this run")
+                return None
+
             # Ensure repository auto-merge is enabled
             logger.info("Checking for Windsurf updates")
             self.github.enable_repository_auto_merge()
-            
+
             # Fetch latest Windsurf version
             windsurf_info = self.version_fetcher.fetch_windsurf_version()
             
@@ -112,6 +126,9 @@ class WindsurfUpdater:
                 body=pr_body,
                 labels=["windsurf-update", "automated"]
             )
+
+            # Sync branch with master before enabling auto-merge (needed for strict branch protection)
+            self.github.update_branch_with_base(branch_name)
 
             # Enable auto-merge (now that required status checks are configured)
             self.github.enable_auto_merge(pr["number"])

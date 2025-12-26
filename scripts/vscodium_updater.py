@@ -8,6 +8,7 @@ import yaml
 from .manifest_fetcher import ManifestFetcher
 from .github_client import GitHubClient
 from .exceptions import ValidationError, ManifestTransformError
+from .emergency_brake import EmergencyBrake
 
 
 logger = logging.getLogger(__name__)
@@ -18,24 +19,37 @@ class VSCodiumUpdater:
     
     def __init__(self, github_client: GitHubClient):
         """Initialize the updater.
-        
+
         Args:
             github_client: GitHub API client
         """
         self.github = github_client
         self.manifest_fetcher = ManifestFetcher()
+        self.emergency_brake = EmergencyBrake(github_client)
     
     def check_and_update(self) -> Optional[str]:
         """Check for VSCodium Flatpak updates and create PR if needed.
-        
+
         Returns:
             PR URL if update was created, None if no update needed
-            
+
         Raises:
             ValidationError: If validation fails
             ManifestTransformError: If manifest transformation fails
         """
         try:
+            # Run emergency brake pre-flight checks
+            logger.info("Running emergency brake pre-flight checks")
+            is_safe, reason = self.emergency_brake.check()
+            if not is_safe:
+                logger.warning(f"Emergency brake triggered: {reason}")
+                return None
+
+            # Check if another PR is already in progress (single PR enforcement)
+            if self.github.has_open_prs():
+                logger.info("Another PR is already in progress, skipping this run")
+                return None
+
             # Fetch latest VSCodium manifest
             logger.info("Checking for VSCodium Flatpak updates")
             current_vscodium = self.manifest_fetcher.fetch_vscodium_manifest()
